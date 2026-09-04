@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ConversationType {
+  DIRECT
+  ROOM
+}
+
+enum RoomPrivacy {
+  PUBLIC
+  PRIVATE
+}
+
+enum RoomRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum MessageType {
+  TEXT
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  displayName  String
+  email        String?  @unique
+  passwordHash String
+  bio          String?
+  avatarUrl    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  conversations ConversationMember[]
+  messages      Message[]
+  roomsCreated  Room[]               @relation("RoomCreator")
+  roomMemberships RoomMember[]
+
+  @@index([username])
+}
+
+model Conversation {
+  id        String           @id @default(uuid())
+  type      ConversationType @default(DIRECT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members   ConversationMember[]
+  messages  Message[]
+}
+
+model ConversationMember {
+  id             String @id @default(uuid())
+  userId         String
+  conversationId String
+
+  joinedAt DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, conversationId])
+  @@index([conversationId])
+}
+
+model Message {
+  id             String      @id @default(uuid())
+  content        String
+  type           MessageType @default(TEXT)
+
+  senderId       String
+  conversationId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sender       User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  room         Room?         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomId       String?
+
+  @@index([conversationId])
+  @@index([roomId])
+  @@index([senderId])
+}
+
+model Room {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  imageUrl    String?
+  privacy     RoomPrivacy @default(PRIVATE)
+
+  creatorId String
+  creator   User @relation("RoomCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  RoomMember[]
+  messages Message[]
+
+  @@index([creatorId])
+}
+
+model RoomMember {
+  id     String   @id @default(uuid())
+  userId String
+  roomId String
+  role   RoomRole @default(MEMBER)
+
+  joinedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@index([roomId])
+}
