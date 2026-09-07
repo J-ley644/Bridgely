@@ -132,3 +132,115 @@ export async function getUserConversations(userId) {
 
   return conversations;
 }
+
+export async function verifyConversationMembership(
+  conversationId,
+  userId
+) {
+  const membership = await prisma.conversationMember.findUnique({
+    where: {
+      userId_conversationId: {
+        userId,
+        conversationId,
+      },
+    },
+  });
+
+  return membership;
+}
+
+export async function sendMessage(
+  conversationId,
+  senderId,
+  content
+) {
+  const membership = await verifyConversationMembership(
+    conversationId,
+    senderId
+  );
+
+  if (!membership) {
+    throw new Error("You are not a member of this conversation");
+  }
+
+  const message = await prisma.message.create({
+    data: {
+      content,
+      type: "TEXT",
+      senderId,
+      conversationId,
+    },
+    select: {
+      id: true,
+      content: true,
+      type: true,
+      senderId: true,
+      conversationId: true,
+      createdAt: true,
+      updatedAt: true,
+      sender: {
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  });
+
+  // Update the conversation timestamp so conversations
+  // with recent messages appear first.
+  await prisma.conversation.update({
+    where: {
+      id: conversationId,
+    },
+    data: {
+      updatedAt: new Date(),
+    },
+  });
+
+  return message;
+}
+
+export async function getConversationMessages(
+  conversationId,
+  userId
+) {
+  const membership = await verifyConversationMembership(
+    conversationId,
+    userId
+  );
+
+  if (!membership) {
+    throw new Error("You are not a member of this conversation");
+  }
+
+  const messages = await prisma.message.findMany({
+    where: {
+      conversationId,
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+    select: {
+      id: true,
+      content: true,
+      type: true,
+      senderId: true,
+      conversationId: true,
+      createdAt: true,
+      updatedAt: true,
+      sender: {
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  });
+
+  return messages;
+}

@@ -31,17 +31,26 @@ model User {
   id           String   @id @default(uuid())
   username     String   @unique
   displayName  String
+
   email        String?  @unique
+  phoneNumber  String?  @unique
+
   passwordHash String
+
   bio          String?
   avatarUrl    String?
+
+  emailVerified            Boolean  @default(false)
+  verificationCodeHash     String?
+  verificationCodeExpiresAt DateTime?
+  verificationAttempts    Int      @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  conversations ConversationMember[]
-  messages      Message[]
-  roomsCreated  Room[]               @relation("RoomCreator")
+  conversations  ConversationMember[]
+  messages       Message[]
+  roomsCreated   Room[]               @relation("RoomCreator")
   roomMemberships RoomMember[]
 
   @@index([username])

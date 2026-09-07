@@ -1,7 +1,10 @@
 import {
   createDirectConversation,
   getUserConversations,
+  sendMessage,
+  getConversationMessages as getMessages,
 } from "../services/conversation.service.js";
+
 export async function createDirect(req, res) {
   try {
     const { username } = req.body;
@@ -66,6 +69,82 @@ export async function getConversations(req, res) {
     return res.status(500).json({
       success: false,
       message: "Failed to retrieve conversations",
+    });
+  }
+}
+
+export async function sendConversationMessage(req, res) {
+  try {
+    const { conversationId } = req.params;
+    const { content } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Message content is required",
+      });
+    }
+
+    const message = await sendMessage(
+      conversationId,
+      req.user.userId,
+      content.trim()
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: "Message sent successfully",
+      data: message,
+    });
+  } catch (error) {
+    console.error("Send message error:", error);
+
+    if (
+      error.message ===
+      "You are not a member of this conversation"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send message",
+    });
+  }
+}
+
+export async function getConversationMessages(req, res) {
+  try {
+    const { conversationId } = req.params;
+
+    const messages = await getMessages(
+      conversationId,
+      req.user.userId
+    );
+
+    return res.status(200).json({
+      success: true,
+      messages,
+    });
+  } catch (error) {
+    console.error("Get messages error:", error);
+
+    if (
+      error.message ===
+      "You are not a member of this conversation"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve messages",
     });
   }
 }
