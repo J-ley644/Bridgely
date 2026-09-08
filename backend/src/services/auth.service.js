@@ -1,14 +1,57 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { randomInt } from "crypto";
+
 import prisma from "../config/prisma.js";
-import { sendVerificationEmail } from "./email.service.js";
+import {
+  sendVerificationCode,
+} from "../providers/verification.provider.js";
 
 const SALT_ROUNDS = 12;
+
 const VERIFICATION_CODE_EXPIRY_MINUTES = 10;
+
 const MAX_VERIFICATION_ATTEMPTS = 5;
 
+const VALID_VERIFICATION_METHODS = [
+  "EMAIL",
+  "SMS",
+];
+
 function generateVerificationCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return randomInt(100000, 1000000).toString();
+}
+
+function normalizeUsername(username) {
+  return username.trim().toLowerCase();
+}
+
+function normalizeEmail(email) {
+  return email.trim().toLowerCase();
+}
+
+function normalizePhoneNumber(phoneNumber) {
+  return phoneNumber.trim();
+}
+
+async function createVerificationCode() {
+  const code = generateVerificationCode();
+
+  const codeHash = await bcrypt.hash(
+    code,
+    SALT_ROUNDS
+  );
+
+  const expiresAt = new Date(
+    Date.now() +
+      VERIFICATION_CODE_EXPIRY_MINUTES * 60 * 1000
+  );
+
+  return {
+    code,
+    codeHash,
+    expiresAt,
+  };
 }
 
 export async function registerUser({
@@ -17,86 +60,149 @@ export async function registerUser({
   email,
   phoneNumber,
   password,
+  verificationMethod,
 }) {
-  const normalizedUsername = username.trim().toLowerCase();
-  const normalizedEmail = email.trim().toLowerCase();
-  const normalizedPhoneNumber = phoneNumber.trim();
+  const normalizedUsername =
+    normalizeUsername(username);
 
-  const existingUsername = await prisma.user.findUnique({
-    where: {
-      username: normalizedUsername,
-    },
-  });
+  const normalizedEmail =
+    normalizeEmail(email);
+
+  const normalizedPhoneNumber =
+    normalizePhoneNumber(phoneNumber);
+
+  const normalizedMethod =
+    verificationMethod.trim().toUpperCase();
+
+  if (
+    !VALID_VERIFICATION_METHODS.includes(
+      normalizedMethod
+    )
+  ) {
+    throw new Error(
+      "Verification method must be EMAIL or SMS"
+    );
+  }
+
+  if (
+    normalizedMethod === "EMAIL" &&
+    !normalizedEmail
+  ) {
+    throw new Error(
+      "Email is required for email verification"
+    );
+  }
+
+  if (
+    normalizedMethod === "SMS" &&
+    !normalizedPhoneNumber
+  ) {
+    throw new Error(
+      "Phone number is required for SMS verification"
+    );
+  }
+
+  const existingUsername =
+    await prisma.user.findUnique({
+      where: {
+        username: normalizedUsername,
+      },
+    });
 
   if (existingUsername) {
-    throw new Error("Username is already taken");
+    throw new Error(
+      "Username is already taken"
+    );
   }
 
-  const existingEmail = await prisma.user.findUnique({
-    where: {
-      email: normalizedEmail,
-    },
-  });
+  const existingEmail =
+    await prisma.user.findUnique({
+      where: {
+        email: normalizedEmail,
+      },
+    });
 
   if (existingEmail) {
-    throw new Error("Email is already registered");
+    throw new Error(
+      "Email is already registered"
+    );
   }
 
-  const existingPhone = await prisma.user.findUnique({
-    where: {
-      phoneNumber: normalizedPhoneNumber,
-    },
-  });
+  const existingPhone =
+    await prisma.user.findUnique({
+      where: {
+        phoneNumber: normalizedPhoneNumber,
+      },
+    });
 
   if (existingPhone) {
-    throw new Error("Phone number is already registered");
+    throw new Error(
+      "Phone number is already registered"
+    );
   }
 
-  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  const passwordHash =
+    await bcrypt.hash(
+      password,
+      SALT_ROUNDS
+    );
 
-  const verificationCode = generateVerificationCode();
-
-  const verificationCodeHash = await bcrypt.hash(
-    verificationCode,
-    SALT_ROUNDS
-  );
-
-  const verificationCodeExpiresAt = new Date(
-    Date.now() + VERIFICATION_CODE_EXPIRY_MINUTES * 60 * 1000
-  );
+  const {
+    code,
+    codeHash,
+    expiresAt,
+  } = await createVerificationCode();
 
   const user = await prisma.user.create({
     data: {
       username: normalizedUsername,
       displayName: displayName.trim(),
+
       email: normalizedEmail,
       phoneNumber: normalizedPhoneNumber,
+
       passwordHash,
+
       emailVerified: false,
-      verificationCodeHash,
-      verificationCodeExpiresAt,
+
+      verificationMethod:
+        normalizedMethod,
+
+      verificationCodeHash:
+        codeHash,
+
+      verificationCodeExpiresAt:
+        expiresAt,
+
       verificationAttempts: 0,
     },
+
     select: {
       id: true,
       username: true,
       displayName: true,
       email: true,
       emailVerified: true,
+      verificationMethod: true,
       createdAt: true,
     },
   });
 
   try {
-    await sendVerificationEmail({
+    await sendVerificationCode({
+      method: normalizedMethod,
       email: normalizedEmail,
+      phoneNumber:
+        normalizedPhoneNumber,
       username: normalizedUsername,
-      code: verificationCode,
+      code,
     });
   } catch (error) {
-    console.error("Verification email error:", error);
+    console.error(
+      "Verification delivery error:",
+      error
+    );
 
-    // Remove the incomplete account if email delivery fails.
     await prisma.user.delete({
       where: {
         id: user.id,
@@ -104,7 +210,8 @@ export async function registerUser({
     });
 
     throw new Error(
-      "We could not send the verification email. Please try again."
+      error.message ||
+        "We could not send the verification code. Please try again."
     );
   }
 
@@ -115,25 +222,45 @@ export async function verifyEmail({
   username,
   code,
 }) {
-  const normalizedUsername = username.trim().toLowerCase();
-  const normalizedCode = code.trim();
-
-  const user = await prisma.user.findUnique({
-    where: {
-      username: normalizedUsername,
-    },
+  return verifyAccount({
+    username,
+    code,
   });
+}
+
+export async function verifyAccount({
+  username,
+  code,
+}) {
+  const normalizedUsername =
+    normalizeUsername(username);
+
+  const normalizedCode =
+    code.trim();
+
+  const user =
+    await prisma.user.findUnique({
+      where: {
+        username: normalizedUsername,
+      },
+    });
 
   if (!user) {
-    throw new Error("Invalid verification request");
+    throw new Error(
+      "Invalid verification request"
+    );
   }
 
   if (user.emailVerified) {
-    throw new Error("Email is already verified");
+    throw new Error(
+      "Account is already verified"
+    );
   }
 
   if (!user.verificationCodeHash) {
-    throw new Error("No verification code is active");
+    throw new Error(
+      "No verification code is active"
+    );
   }
 
   if (
@@ -145,22 +272,27 @@ export async function verifyEmail({
     );
   }
 
-  if (user.verificationAttempts >= MAX_VERIFICATION_ATTEMPTS) {
+  if (
+    user.verificationAttempts >=
+    MAX_VERIFICATION_ATTEMPTS
+  ) {
     throw new Error(
       "Too many verification attempts. Please request a new code."
     );
   }
 
-  const codeMatches = await bcrypt.compare(
-    normalizedCode,
-    user.verificationCodeHash
-  );
+  const codeMatches =
+    await bcrypt.compare(
+      normalizedCode,
+      user.verificationCodeHash
+    );
 
   if (!codeMatches) {
     await prisma.user.update({
       where: {
         id: user.id,
       },
+
       data: {
         verificationAttempts: {
           increment: 1,
@@ -168,30 +300,41 @@ export async function verifyEmail({
       },
     });
 
-    throw new Error("Invalid verification code");
+    throw new Error(
+      "Invalid verification code"
+    );
   }
 
-  const verifiedUser = await prisma.user.update({
-    where: {
-      id: user.id,
-    },
-    data: {
-      emailVerified: true,
-      verificationCodeHash: null,
-      verificationCodeExpiresAt: null,
-      verificationAttempts: 0,
-    },
-    select: {
-      id: true,
-      username: true,
-      displayName: true,
-      email: true,
-      emailVerified: true,
-      bio: true,
-      avatarUrl: true,
-      createdAt: true,
-    },
-  });
+  const verifiedUser =
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+
+      data: {
+        emailVerified: true,
+
+        verificationCodeHash:
+          null,
+
+        verificationCodeExpiresAt:
+          null,
+
+        verificationAttempts: 0,
+      },
+
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        email: true,
+        emailVerified: true,
+        verificationMethod: true,
+        bio: true,
+        avatarUrl: true,
+        createdAt: true,
+      },
+    });
 
   return verifiedUser;
 }
@@ -199,57 +342,106 @@ export async function verifyEmail({
 export async function resendVerificationCode({
   username,
 }) {
-  const normalizedUsername = username.trim().toLowerCase();
+  const normalizedUsername =
+    normalizeUsername(username);
 
-  const user = await prisma.user.findUnique({
-    where: {
-      username: normalizedUsername,
-    },
-  });
+  const user =
+    await prisma.user.findUnique({
+      where: {
+        username: normalizedUsername,
+      },
+    });
 
   if (!user) {
-    throw new Error("User not found");
+    throw new Error(
+      "User not found"
+    );
   }
 
   if (user.emailVerified) {
-    throw new Error("Email is already verified");
+    throw new Error(
+      "Account is already verified"
+    );
   }
 
-  if (!user.email) {
-    throw new Error("No email address is associated with this account");
+  if (!user.verificationMethod) {
+    throw new Error(
+      "No verification method is configured for this account"
+    );
   }
 
-  const verificationCode = generateVerificationCode();
+  if (
+    user.verificationMethod === "EMAIL" &&
+    !user.email
+  ) {
+    throw new Error(
+      "No email address is associated with this account"
+    );
+  }
 
-  const verificationCodeHash = await bcrypt.hash(
-    verificationCode,
-    SALT_ROUNDS
-  );
+  if (
+    user.verificationMethod === "SMS" &&
+    !user.phoneNumber
+  ) {
+    throw new Error(
+      "No phone number is associated with this account"
+    );
+  }
 
-  const verificationCodeExpiresAt = new Date(
-    Date.now() + VERIFICATION_CODE_EXPIRY_MINUTES * 60 * 1000
-  );
+  const {
+    code,
+    codeHash,
+    expiresAt,
+  } = await createVerificationCode();
 
   await prisma.user.update({
     where: {
       id: user.id,
     },
+
     data: {
-      verificationCodeHash,
-      verificationCodeExpiresAt,
+      verificationCodeHash:
+        codeHash,
+
+      verificationCodeExpiresAt:
+        expiresAt,
+
       verificationAttempts: 0,
     },
   });
 
-  await sendVerificationEmail({
-    email: user.email,
-    username: user.username,
-    code: verificationCode,
-  });
+  try {
+    await sendVerificationCode({
+      method:
+        user.verificationMethod,
+
+      email: user.email,
+
+      phoneNumber:
+        user.phoneNumber,
+
+      username:
+        user.username,
+
+      code,
+    });
+  } catch (error) {
+    console.error(
+      "Resend verification delivery error:",
+      error
+    );
+
+    throw new Error(
+      error.message ||
+        "We could not send the verification code. Please try again."
+    );
+  }
 
   return {
     username: user.username,
-    email: user.email,
+
+    verificationMethod:
+      user.verificationMethod,
   };
 }
 
@@ -257,35 +449,44 @@ export async function loginUser({
   username,
   password,
 }) {
-  const normalizedUsername = username.trim().toLowerCase();
+  const normalizedUsername =
+    normalizeUsername(username);
 
-  const user = await prisma.user.findUnique({
-    where: {
-      username: normalizedUsername,
-    },
-  });
+  const user =
+    await prisma.user.findUnique({
+      where: {
+        username: normalizedUsername,
+      },
+    });
 
   if (!user) {
-    throw new Error("Invalid username or password");
+    throw new Error(
+      "Invalid username or password"
+    );
   }
 
-  const passwordMatches = await bcrypt.compare(
-    password,
-    user.passwordHash
-  );
+  const passwordMatches =
+    await bcrypt.compare(
+      password,
+      user.passwordHash
+    );
 
   if (!passwordMatches) {
-    throw new Error("Invalid username or password");
+    throw new Error(
+      "Invalid username or password"
+    );
   }
 
   if (!user.emailVerified) {
     throw new Error(
-      "Please verify your email before logging in"
+      "Please verify your account before logging in"
     );
   }
 
   if (!process.env.JWT_SECRET) {
-    throw new Error("JWT_SECRET is not configured");
+    throw new Error(
+      "JWT_SECRET is not configured"
+    );
   }
 
   const token = jwt.sign(
@@ -293,7 +494,9 @@ export async function loginUser({
       userId: user.id,
       username: user.username,
     },
+
     process.env.JWT_SECRET,
+
     {
       expiresIn: "7d",
     }
@@ -301,12 +504,16 @@ export async function loginUser({
 
   return {
     token,
+
     user: {
       id: user.id,
       username: user.username,
       displayName: user.displayName,
       email: user.email,
-      emailVerified: user.emailVerified,
+      emailVerified:
+        user.emailVerified,
+      verificationMethod:
+        user.verificationMethod,
       bio: user.bio,
       avatarUrl: user.avatarUrl,
       createdAt: user.createdAt,

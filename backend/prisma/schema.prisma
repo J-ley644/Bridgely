@@ -27,6 +27,11 @@ enum MessageType {
   TEXT
 }
 
+enum VerificationMethod {
+  EMAIL
+  SMS
+}
+
 model User {
   id           String   @id @default(uuid())
   username     String   @unique
@@ -41,6 +46,7 @@ model User {
   avatarUrl    String?
 
   emailVerified            Boolean  @default(false)
+  verificationMethod        VerificationMethod?
   verificationCodeHash     String?
   verificationCodeExpiresAt DateTime?
   verificationAttempts    Int      @default(0)
