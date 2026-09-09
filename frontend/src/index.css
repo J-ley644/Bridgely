@@ -2049,3 +2049,761 @@ a {
     padding: 11px 15px;
   }
 }
+
+
+/* =========================================================
+   BRIDGELY THEME SYSTEM
+   ========================================================= */
+
+:root {
+  --bg-primary: #fbfafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f7f5f9;
+
+  --text-primary: #17151f;
+  --text-secondary: #686371;
+  --text-muted: #8b8691;
+
+  --border-color: #e9e5ed;
+  --border-strong: #dfdbe4;
+
+  --card-bg: #ffffff;
+  --input-bg: #ffffff;
+
+  --accent: #7c4dff;
+  --accent-soft: #f0ebff;
+  --accent-hover: #6d3ff0;
+
+  --button-primary: #17151f;
+  --button-primary-text: #ffffff;
+
+  --shadow-color: rgba(35, 28, 46, 0.08);
+
+  --danger-bg: #fff1f1;
+  --danger-text: #b42318;
+}
+
+/* ---------------------------------------------------------
+   DARK MODE
+   --------------------------------------------------------- */
+
+html[data-theme="dark"] {
+  --bg-primary: #0f0e13;
+  --bg-secondary: #17151d;
+  --bg-tertiary: #1d1b24;
+
+  --text-primary: #f5f3f8;
+  --text-secondary: #b8b3c1;
+  --text-muted: #898392;
+
+  --border-color: #2b2834;
+  --border-strong: #393542;
+
+  --card-bg: #18161f;
+  --input-bg: #121117;
+
+  --accent: #9b78ff;
+  --accent-soft: #28213d;
+  --accent-hover: #b094ff;
+
+  --button-primary: #f5f3f8;
+  --button-primary-text: #17151f;
+
+  --shadow-color: rgba(0, 0, 0, 0.35);
+
+  --danger-bg: #351c20;
+  --danger-text: #ff9b9b;
+}
+
+/* ---------------------------------------------------------
+   GLOBAL
+   --------------------------------------------------------- */
+
+html,
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
+}
+
+body {
+  background: var(--bg-primary);
+}
+
+button,
+input,
+textarea,
+select {
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease;
+}
+
+/* ---------------------------------------------------------
+   COMMON TEXT
+   --------------------------------------------------------- */
+
+html[data-theme="dark"] .hero-description,
+html[data-theme="dark"] .section-heading p,
+html[data-theme="dark"] .privacy-content p,
+html[data-theme="dark"] .feature-card p,
+html[data-theme="dark"] .trust-item {
+  color: var(--text-secondary);
+}
+
+/* ---------------------------------------------------------
+   BRAND
+   --------------------------------------------------------- */
+
+html[data-theme="dark"] .brand-mark {
+  background: #f5f3f8;
+  color: #17151f;
+}
+
+/* ---------------------------------------------------------
+   LANDING PAGE
+   --------------------------------------------------------- */
+
+html[data-theme="dark"] .hero-badge {
+  border-color: var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+}
+
+html[data-theme="dark"] .primary-button {
+  background: #f5f3f8;
+  color: #17151f;
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.3);
+}
+
+html[data-theme="dark"] .secondary-button {
+  border-color: var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .feature-card {
+  border-color: var(--border-color);
+  background: var(--card-bg);
+}
+
+html[data-theme="dark"] .feature-icon {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+html[data-theme="dark"] .privacy-section {
+  background: #211b32;
+}
+
+html[data-theme="dark"] .landing-footer {
+  border-color: var(--border-color);
+  color: var(--text-muted);
+}
+
+html[data-theme="dark"] .footer-brand {
+  color: var(--text-primary);
+}
+
+/* ---------------------------------------------------------
+   HERO VISUAL
+   --------------------------------------------------------- */
+
+html[data-theme="dark"] .phone-card {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(24, 22, 31, 0.92);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.4);
+}
+
+html[data-theme="dark"] .phone-top {
+  border-color: var(--border-color);
+}
+
+html[data-theme="dark"] .phone-user span {
+  color: var(--text-muted);
+}
+
+html[data-theme="dark"] .received {
+  background: #27242e;
+  color: #ddd9e4;
+}
+
+html[data-theme="dark"] .sent {
+  background: #f5f3f8;
+  color: #17151f;
+}
+
+html[data-theme="dark"] .message-input {
+  border-color: var(--border-color);
+  color: var(--text-muted);
+}
+
+html[data-theme="dark"] .floating-card {
+  border-color: var(--border-color);
+  background: rgba(24, 22, 31, 0.95);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.35);
+}
+
+html[data-theme="dark"] .floating-card span {
+  color: var(--text-muted);
+}
+
+html[data-theme="dark"] .floating-icon {
+  background: var(--accent-soft);
+}
+
+html[data-theme="dark"] .glow-one {
+  background: #241b3c;
+}
+
+html[data-theme="dark"] .glow-two {
+  background: #301d3b;
+}
+
+/* ---------------------------------------------------------
+   AUTH PAGES
+   --------------------------------------------------------- */
+
+html[data-theme="dark"] .auth-page {
+  background:
+    radial-gradient(
+      circle at 15% 20%,
+      #241b3c 0,
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 85% 80%,
+      #301d3b 0,
+      transparent 28%
+    ),
+    var(--bg-primary);
+}
+
+html[data-theme="dark"] .auth-card {
+  border-color: var(--border-color);
+  background: rgba(24, 22, 31, 0.94);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
+}
+
+html[data-theme="dark"] .auth-heading p {
+  color: var(--text-secondary);
+}
+
+html[data-theme="dark"] .form-group label {
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .form-group input,
+html[data-theme="dark"] .form-group textarea,
+html[data-theme="dark"] .form-group select {
+  border-color: var(--border-strong);
+  background: var(--input-bg);
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .form-group input::placeholder,
+html[data-theme="dark"] .form-group textarea::placeholder {
+  color: var(--text-muted);
+}
+
+html[data-theme="dark"] .verification-choice {
+  border-color: var(--border-color);
+  background: var(--bg-tertiary);
+}
+
+html[data-theme="dark"] .verification-option {
+  border-color: var(--border-color);
+  background: var(--card-bg);
+}
+
+html[data-theme="dark"] .verification-option:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+html[data-theme="dark"] .verification-info strong,
+html[data-theme="dark"] .verification-title strong {
+  color: var(--text-primary);
+}
+
+/* ---------------------------------------------------------
+   HOME / ROOMS
+   --------------------------------------------------------- */
+
+html[data-theme="dark"] .home-page {
+  background: var(--bg-primary);
+}
+
+html[data-theme="dark"] .home-header {
+  background: var(--bg-primary);
+  border-color: var(--border-color);
+}
+
+html[data-theme="dark"] .home-logo {
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .home-user-info strong {
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .home-user-info span {
+  color: var(--text-muted);
+}
+
+html[data-theme="dark"] .home-panel,
+html[data-theme="dark"] .rooms-toolbar,
+html[data-theme="dark"] .room-create-panel,
+html[data-theme="dark"] .room-card,
+html[data-theme="dark"] .rooms-empty-state {
+  border-color: var(--border-color);
+  background: var(--card-bg);
+}
+
+html[data-theme="dark"] .home-panel h2,
+html[data-theme="dark"] .rooms-toolbar h2,
+html[data-theme="dark"] .room-create-panel h2,
+html[data-theme="dark"] .room-card h3,
+html[data-theme="dark"] .rooms-empty-state h2 {
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .home-panel p,
+html[data-theme="dark"] .room-card p,
+html[data-theme="dark"] .rooms-empty-state p {
+  color: var(--text-secondary);
+}
+
+html[data-theme="dark"] .panel-label,
+html[data-theme="dark"] .section-label {
+  color: var(--accent);
+}
+
+html[data-theme="dark"] .panel-icon,
+html[data-theme="dark"] .empty-circle {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+html[data-theme="dark"] .panel-action {
+  border-color: var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .panel-action:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+html[data-theme="dark"] .logout-button {
+  border-color: var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .logout-button:hover {
+  background: var(--bg-tertiary);
+}
+
+html[data-theme="dark"] .room-item,
+html[data-theme="dark"] .conversation-item {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+html[data-theme="dark"] .room-item:hover,
+html[data-theme="dark"] .conversation-item:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+html[data-theme="dark"] .room-item-content strong,
+html[data-theme="dark"] .conversation-item-content strong {
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .room-item-bottom,
+html[data-theme="dark"] .conversation-item-bottom,
+html[data-theme="dark"] .conversation-item-presence {
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------
+   ROOMS FORMS
+   --------------------------------------------------------- */
+
+html[data-theme="dark"] .room-close-button {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .room-form-field label {
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .room-form-field input,
+html[data-theme="dark"] .room-form-field textarea,
+html[data-theme="dark"] .room-form-field select {
+  border-color: var(--border-strong);
+  background: var(--input-bg);
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .room-form-field input::placeholder,
+html[data-theme="dark"] .room-form-field textarea::placeholder {
+  color: var(--text-muted);
+}
+
+html[data-theme="dark"] .room-privacy-option {
+  border-color: var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .room-privacy-option span,
+html[data-theme="dark"] .room-privacy-option small {
+  color: var(--text-muted);
+}
+
+html[data-theme="dark"] .room-privacy-option.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+html[data-theme="dark"] .privacy-banner {
+  border-color: var(--border-color);
+  background: var(--accent-soft);
+}
+
+html[data-theme="dark"] .privacy-banner strong {
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .privacy-banner p {
+  color: var(--text-secondary);
+}
+
+/* ---------------------------------------------------------
+   SMOOTH THEME TRANSITION
+   --------------------------------------------------------- */
+
+html[data-theme="light"] *,
+html[data-theme="dark"] * {
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+
+/* =========================================================
+   THEME TOGGLE
+   ========================================================= */
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  min-height: 40px;
+  padding: 8px 13px;
+
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+
+  background: var(--card-bg);
+  color: var(--text-primary);
+
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  box-shadow: 0 4px 12px var(--shadow-color);
+
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease,
+    transform 0.2s ease,
+    box-shadow 0.25s ease;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+
+.theme-toggle:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.theme-toggle-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 20px;
+  height: 20px;
+
+  font-size: 15px;
+  line-height: 1;
+}
+
+.theme-toggle-text {
+  line-height: 1;
+}
+
+html[data-theme="dark"] .theme-toggle {
+  background: #211e29;
+}
+
+html[data-theme="dark"] .theme-toggle:hover {
+  background: var(--accent-soft);
+}
+
+/* Mobile */
+
+@media (max-width: 600px) {
+  .theme-toggle {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+  }
+
+  .theme-toggle-text {
+    display: none;
+  }
+}
+
+.rooms-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .rooms-header-actions {
+    gap: 6px;
+  }
+}
+
+/* =========================================================
+   CONVERSATION DARK / LIGHT THEME
+   ========================================================= */
+
+.conversation-page {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
+}
+
+.conversation-header {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease;
+}
+
+.conversation-header .home-logo {
+  color: var(--text-primary);
+}
+
+.conversation-back {
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease;
+}
+
+.conversation-back:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.conversation-main {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.conversation-shell {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+  box-shadow: 0 12px 35px var(--shadow-color);
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.conversation-title {
+  color: var(--text-primary);
+  border-bottom-color: var(--border-color);
+}
+
+.conversation-title h1 {
+  color: var(--text-primary);
+}
+
+.conversation-username {
+  color: var(--text-secondary);
+}
+
+.conversation-presence {
+  color: var(--text-secondary);
+}
+
+.messages-area {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
+}
+
+.messages-empty {
+  color: var(--text-secondary);
+}
+
+.messages-empty strong {
+  color: var(--text-primary);
+}
+
+.messages-empty p {
+  color: var(--text-secondary);
+}
+
+/* Other person's message */
+.message-bubble-other {
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.message-bubble-other p {
+  color: var(--text-primary);
+}
+
+.message-bubble-other span {
+  color: var(--text-muted);
+}
+
+/* Your message */
+.message-bubble-mine {
+  background: var(--button-primary);
+  color: var(--button-primary-text);
+  border-color: var(--button-primary);
+}
+
+.message-bubble-mine p {
+  color: var(--button-primary-text);
+}
+
+.message-bubble-mine span {
+  color: var(--button-primary-text);
+  opacity: 0.7;
+}
+
+/* Message input area */
+.message-form {
+  background: var(--card-bg);
+  border-top-color: var(--border-color);
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.message-form textarea {
+  background: var(--input-bg);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease;
+}
+
+.message-form textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.message-form textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.message-send-button {
+  background: var(--button-primary);
+  color: var(--button-primary-text);
+  border-color: var(--button-primary);
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease,
+    transform 0.2s ease;
+}
+
+.message-send-button:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.message-send-button:disabled {
+  opacity: 0.5;
+}
+
+/* Privacy notice */
+.conversation-privacy {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border-top-color: var(--border-color);
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease;
+}
+
+.conversation-privacy p {
+  color: var(--text-secondary);
+}
+
+/* Error message */
+.conversation-page .auth-error {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: var(--danger-text);
+}
+
+/* Avatar */
+.conversation-avatar {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--border-color);
+}
+
+/* Empty state circle */
+.conversation-page .empty-circle {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--border-color);
+}

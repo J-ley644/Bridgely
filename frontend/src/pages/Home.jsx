@@ -8,6 +8,7 @@ import {
 } from "../services/api";
 
 import socket from "../services/socket";
+import ThemeToggle from "../components/ThemeToggle";
 
 function Home() {
   const navigate = useNavigate();
@@ -246,6 +247,8 @@ function Home() {
         </div>
 
         <div className="home-profile">
+          <ThemeToggle />
+
           <div className="home-avatar">
             {user.displayName
               ?.charAt(0)

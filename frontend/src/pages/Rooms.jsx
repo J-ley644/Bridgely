@@ -6,6 +6,8 @@ import {
   getMyRooms,
 } from "../services/api";
 
+import ThemeToggle from "../components/ThemeToggle";
+
 function Rooms() {
   const navigate = useNavigate();
 
@@ -100,12 +102,16 @@ function Rooms() {
           <span>Bridgely</span>
         </div>
 
-        <button
-          className="logout-button"
-          onClick={() => navigate("/home")}
-        >
-          Back home
-        </button>
+        <div className="rooms-header-actions">
+          <ThemeToggle />
+
+          <button
+            className="logout-button"
+            onClick={() => navigate("/home")}
+          >
+            Back home
+          </button>
+        </div>
       </header>
 
       <main className="home-main">
@@ -222,9 +228,11 @@ function Rooms() {
                     }
                   >
                     <strong>Public</strong>
+
                     <span>
                       Anyone can discover and join.
                     </span>
+
                     <small>
                       Up to 2,000 members
                     </small>
@@ -242,10 +250,12 @@ function Rooms() {
                     }
                   >
                     <strong>Private</strong>
+
                     <span>
                       Members join through
                       invitations or approval.
                     </span>
+
                     <small>
                       Up to 1,300 members
                     </small>
@@ -344,14 +354,12 @@ function Rooms() {
 
                   <span
                     className={`room-privacy ${
-                      room.privacy ===
-                      "PUBLIC"
+                      room.privacy === "PUBLIC"
                         ? "room-public"
                         : "room-private"
                     }`}
                   >
-                    {room.privacy ===
-                    "PUBLIC"
+                    {room.privacy === "PUBLIC"
                       ? "Public"
                       : "Private"}
                   </span>

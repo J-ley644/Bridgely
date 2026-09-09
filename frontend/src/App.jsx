@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import {
   BrowserRouter,
@@ -15,6 +16,8 @@ import Search from "./pages/Search";
 import Conversation from "./pages/Conversation";
 import Rooms from "./pages/Rooms";
 
+import { ThemeProvider } from "./context/ThemeContext";
+
 import {
   connectSocket,
   disconnectSocket,
@@ -24,8 +27,7 @@ function GlobalSocket() {
   const location = useLocation();
 
   useEffect(() => {
-    const token =
-      sessionStorage.getItem("bridgelyToken");
+    const token = sessionStorage.getItem("bridgelyToken");
 
     if (!token) {
       disconnectSocket();
@@ -60,10 +62,7 @@ function GlobalSocket() {
 
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
-    socket.on(
-      "connect_error",
-      handleConnectError
-    );
+    socket.on("connect_error", handleConnectError);
 
     if (socket.connected) {
       handleConnect();
@@ -71,14 +70,8 @@ function GlobalSocket() {
 
     return () => {
       socket.off("connect", handleConnect);
-      socket.off(
-        "disconnect",
-        handleDisconnect
-      );
-      socket.off(
-        "connect_error",
-        handleConnectError
-      );
+      socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleConnectError);
     };
   }, [location.pathname]);
 
@@ -87,49 +80,55 @@ function GlobalSocket() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <GlobalSocket />
+    <ThemeProvider>
+      <BrowserRouter>
+        <GlobalSocket />
 
-      <Routes>
-        <Route
-          path="/"
-          element={<Landing />}
-        />
+        <Routes>
+          <Route
+            path="/"
+            element={<Landing />}
+          />
 
-        <Route
-          path="/login"
-          element={<Login />}
-        />
+          <Route
+            path="/login"
+            element={<Login />}
+          />
 
-        <Route
-          path="/register"
-          element={<Register />}
-        />
+          <Route
+            path="/register"
+            element={<Register />}
+          />
 
-        <Route
-          path="/verify"
-          element={<Verify />}
-        />
+          <Route
+            path="/verify"
+            element={<Verify />}
+          />
 
-        <Route
-          path="/home"
-          element={<Home />}
-        />
+          <Route
+            path="/home"
+            element={<Home />}
+          />
 
-        <Route
-          path="/search"
-          element={<Search />}
-        />
+          <Route
+            path="/search"
+            element={<Search />}
+          />
 
-        <Route path="/rooms" element={<Rooms />} />
+          <Route
+            path="/rooms"
+            element={<Rooms />}
+          />
 
-        <Route
-          path="/conversation/:conversationId"
-          element={<Conversation />}
-        />
-      </Routes>
-    </BrowserRouter>
+          <Route
+            path="/conversation/:conversationId"
+            element={<Conversation />}
+          />
+        </Routes>
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }
 
 export default App;
+
