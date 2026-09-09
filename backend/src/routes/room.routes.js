@@ -6,6 +6,8 @@ import {
   joinRoomController,
   leaveRoomController,
   getMyRoomsController,
+  getRoomMessagesController,
+  sendRoomMessageController,
 } from "../controllers/room.controller.js";
 
 import { requireAuth } from "../middleware/auth.middleware.js";
@@ -19,6 +21,16 @@ router.post("/", createRoomController);
 router.get("/", getMyRoomsController);
 
 router.get("/:roomId", getRoomController);
+
+router.get(
+  "/:roomId/messages",
+  getRoomMessagesController
+);
+
+router.post(
+  "/:roomId/messages",
+  sendRoomMessageController
+);
 
 router.post(
   "/:roomId/join",

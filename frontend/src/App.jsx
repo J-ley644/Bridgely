@@ -15,6 +15,7 @@ import Home from "./pages/Home";
 import Search from "./pages/Search";
 import Conversation from "./pages/Conversation";
 import Rooms from "./pages/Rooms";
+import Room from "./pages/Room";
 
 import { ThemeProvider } from "./context/ThemeContext";
 
@@ -119,6 +120,8 @@ function App() {
             path="/rooms"
             element={<Rooms />}
           />
+
+          <Route path="/rooms/:roomId" element={<Room />} />
 
           <Route
             path="/conversation/:conversationId"

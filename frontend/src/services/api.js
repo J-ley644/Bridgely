@@ -258,6 +258,34 @@ export async function joinRoom(
   );
 }
 
+export async function getRoomMessages(
+  roomId
+) {
+  return apiRequest(
+    `/rooms/${roomId}/messages`,
+    {
+      method: "GET",
+      headers: getAuthHeaders(),
+    }
+  );
+}
+
+export async function sendRoomMessage(
+  roomId,
+  content
+) {
+  return apiRequest(
+    `/rooms/${roomId}/messages`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        content,
+      }),
+    }
+  );
+}
+
 export async function leaveRoom(
   roomId
 ) {

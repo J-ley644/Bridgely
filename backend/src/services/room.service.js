@@ -255,3 +255,85 @@ export async function getUserRooms(
 
   return rooms;
 }
+
+export async function getRoomMessages(roomId, userId) {
+  const membership = await prisma.roomMember.findUnique({
+    where: {
+      userId_roomId: {
+        userId,
+        roomId,
+      },
+    },
+  });
+
+  if (!membership) {
+    throw new Error("You are not a member of this room");
+  }
+
+  const messages = await prisma.message.findMany({
+    where: {
+      roomId,
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+    include: {
+      sender: {
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  });
+
+  return messages;
+}
+
+export async function sendRoomMessage(
+  roomId,
+  userId,
+  content
+) {
+  const membership = await prisma.roomMember.findUnique({
+    where: {
+      userId_roomId: {
+        userId,
+        roomId,
+      },
+    },
+  });
+
+  if (!membership) {
+    throw new Error("You are not a member of this room");
+  }
+
+  const cleanContent = content?.trim();
+
+  if (!cleanContent) {
+    throw new Error("Message content is required");
+  }
+
+  const message = await prisma.message.create({
+    data: {
+      content: cleanContent,
+      type: "TEXT",
+      senderId: userId,
+      roomId,
+    },
+    include: {
+      sender: {
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  });
+
+  return message;
+}

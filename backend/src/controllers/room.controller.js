@@ -4,7 +4,11 @@ import {
   joinRoom,
   leaveRoom,
   getUserRooms,
+  getRoomMessages,
+  sendRoomMessage,
 } from "../services/room.service.js";
+
+import { getIO } from "../config/socket.js";
 
 export async function createRoomController(
   req,
@@ -207,6 +211,105 @@ export async function getMyRoomsController(
     return res.status(500).json({
       success: false,
       message: "Failed to retrieve rooms",
+    });
+  }
+}
+
+export async function getRoomMessagesController(
+  req,
+  res
+) {
+  try {
+    const { roomId } = req.params;
+
+    const messages = await getRoomMessages(
+      roomId,
+      req.user.userId
+    );
+
+    return res.status(200).json({
+      success: true,
+      messages,
+    });
+  } catch (error) {
+    console.error(
+      "Get room messages error:",
+      error
+    );
+
+    if (
+      error.message ===
+      "You are not a member of this room"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to retrieve room messages",
+    });
+  }
+}
+
+export async function sendRoomMessageController(
+  req,
+  res
+) {
+  try {
+    const { roomId } = req.params;
+    const { content } = req.body || {};
+
+    if (
+      !content ||
+      !content.trim()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Message content is required",
+      });
+    }
+
+    const message = await sendRoomMessage(
+      roomId,
+      req.user.userId,
+      content
+    );
+
+    const io = getIO();
+
+    io.to(`room:${roomId}`).emit(
+      "room:message:new",
+      message
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: "Message sent successfully",
+      data: message,
+    });
+  } catch (error) {
+    console.error(
+      "Send room message error:",
+      error
+    );
+
+    if (
+      error.message ===
+      "You are not a member of this room"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send room message",
     });
   }
 }

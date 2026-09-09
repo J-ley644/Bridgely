@@ -20,7 +20,7 @@ const httpServer = http.createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: process.env.FRONTEND_URL,
     methods: ["GET", "POST"],
   },
 });
@@ -191,6 +191,71 @@ io.on("connection", (socket) => {
       }
     }
   );
+
+
+  socket.on(
+  "join-room",
+  async (roomId) => {
+    try {
+      if (!roomId) {
+        return;
+      }
+
+      const membership =
+        await prisma.roomMember.findUnique({
+          where: {
+            userId_roomId: {
+              userId: socket.user.id,
+              roomId,
+            },
+          },
+        });
+
+      if (!membership) {
+        socket.emit("socket-error", {
+          message:
+            "You are not a member of this room",
+        });
+
+        return;
+      }
+
+      const roomName = `room:${roomId}`;
+
+      socket.join(roomName);
+
+      console.log(
+        `👥 ${socket.user.username} joined ${roomName}`
+      );
+    } catch (error) {
+      console.error(
+        "Join room socket error:",
+        error
+      );
+
+      socket.emit("socket-error", {
+        message: "Unable to join room",
+      });
+    }
+  }
+);
+
+socket.on(
+  "leave-room",
+  (roomId) => {
+    if (!roomId) {
+      return;
+    }
+
+    const roomName = `room:${roomId}`;
+
+    socket.leave(roomName);
+
+    console.log(
+      `👋 ${socket.user.username} left ${roomName}`
+    );
+  }
+);
 
   socket.on(
     "leave-conversation",
