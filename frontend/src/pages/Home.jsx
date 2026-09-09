@@ -2,12 +2,16 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { getConversations } from "../services/api";
+import socket from "../services/socket";
 
 function Home() {
   const navigate = useNavigate();
 
   const [user, setUser] = useState(null);
   const [conversations, setConversations] = useState([]);
+  const [onlineUserIds, setOnlineUserIds] = useState(
+    new Set()
+  );
   const [loadingConversations, setLoadingConversations] =
     useState(true);
   const [conversationError, setConversationError] =
@@ -37,6 +41,66 @@ function Home() {
     }
 
     loadConversations();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    function handleOnlineUsers(data) {
+      console.log(
+        "🟢 Initial online users received:",
+        data
+      );
+
+      setOnlineUserIds(
+        new Set(data?.userIds || [])
+      );
+    }
+
+    function handlePresenceUpdate(presence) {
+      console.log(
+        "🟢 Home presence update:",
+        presence
+      );
+
+      setOnlineUserIds((current) => {
+        const next = new Set(current);
+
+        if (presence.status === "online") {
+          next.add(presence.userId);
+        } else if (
+          presence.status === "offline"
+        ) {
+          next.delete(presence.userId);
+        }
+
+        return next;
+      });
+    }
+
+    socket.on(
+      "presence:online-users",
+      handleOnlineUsers
+    );
+
+    socket.on(
+      "presence:update",
+      handlePresenceUpdate
+    );
+
+    return () => {
+      socket.off(
+        "presence:online-users",
+        handleOnlineUsers
+      );
+
+      socket.off(
+        "presence:update",
+        handlePresenceUpdate
+      );
+    };
   }, [user]);
 
   async function loadConversations() {
@@ -106,6 +170,10 @@ function Home() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  }
+
+  function isUserOnline(userId) {
+    return onlineUserIds.has(userId);
   }
 
   if (!user) {
@@ -228,6 +296,11 @@ function Home() {
                   const otherUser =
                     getOtherMember(conversation);
 
+                  const otherUserIsOnline =
+                    otherUser
+                      ? isUserOnline(otherUser.id)
+                      : false;
+
                   return (
                     <button
                       key={conversation.id}
@@ -271,6 +344,24 @@ function Home() {
                             )}
                           </p>
                         </div>
+
+                        {otherUser && (
+                          <div className="conversation-item-presence">
+                            <span
+                              className={`presence-dot ${
+                                otherUserIsOnline
+                                  ? "presence-online"
+                                  : "presence-offline"
+                              }`}
+                            />
+
+                            <span>
+                              {otherUserIsOnline
+                                ? "Online"
+                                : "Offline"}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       <span className="conversation-arrow">

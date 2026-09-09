@@ -5,7 +5,14 @@ import { Server } from "socket.io";
 
 import app from "./app.js";
 import prisma from "./config/prisma.js";
-import { initializeSocket } from "./config/socket.js";
+
+import {
+  initializeSocket,
+  setUserOnline,
+  setUserOffline,
+  getOnlineUserIds,
+  isUserOnline,
+} from "./config/socket.js";
 
 const PORT = process.env.PORT || 5000;
 
@@ -83,6 +90,53 @@ io.on("connection", (socket) => {
     `🔌 Socket connected: ${socket.id} (${socket.user.username})`
   );
 
+  /*
+   * Check whether this user was already online
+   * before registering this new socket.
+   */
+  const alreadyOnline = isUserOnline(
+    socket.user.id
+  );
+
+  // Register this socket
+  setUserOnline(
+    socket.user.id,
+    socket.id
+  );
+
+  console.log(
+    `🟢 ${socket.user.username} is now online`
+  );
+
+  /*
+   * Send the current online-user list to the
+   * newly connected client.
+   */
+  socket.emit(
+    "presence:online-users",
+    {
+      userIds: getOnlineUserIds(),
+    }
+  );
+
+  /*
+   * Only broadcast an "online" event when this
+   * is the user's first active connection.
+   *
+   * This prevents opening another tab/device from
+   * incorrectly creating another presence transition.
+   */
+  if (!alreadyOnline) {
+    socket.broadcast.emit(
+      "presence:update",
+      {
+        userId: socket.user.id,
+        username: socket.user.username,
+        status: "online",
+      }
+    );
+  }
+
   socket.on(
     "join-conversation",
     async (conversationId) => {
@@ -157,6 +211,37 @@ io.on("connection", (socket) => {
   );
 
   socket.on("disconnect", () => {
+    /*
+     * Remove only this socket.
+     */
+    setUserOffline(
+      socket.user.id,
+      socket.id
+    );
+
+    /*
+     * Only mark the user offline when their
+     * final active socket has disconnected.
+     */
+    const stillOnline = isUserOnline(
+      socket.user.id
+    );
+
+    if (!stillOnline) {
+      console.log(
+        `🔴 ${socket.user.username} is now offline`
+      );
+
+      socket.broadcast.emit(
+        "presence:update",
+        {
+          userId: socket.user.id,
+          username: socket.user.username,
+          status: "offline",
+        }
+      );
+    }
+
     console.log(
       `🔌 Socket disconnected: ${socket.id} (${socket.user.username})`
     );

@@ -1,8 +1,9 @@
-
+import { useEffect } from "react";
 import {
   BrowserRouter,
   Routes,
   Route,
+  useLocation,
 } from "react-router-dom";
 
 import Landing from "./pages/Landing";
@@ -13,9 +14,81 @@ import Home from "./pages/Home";
 import Search from "./pages/Search";
 import Conversation from "./pages/Conversation";
 
+import {
+  connectSocket,
+  disconnectSocket,
+} from "./services/socket";
+
+function GlobalSocket() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const token =
+      sessionStorage.getItem("bridgelyToken");
+
+    if (!token) {
+      disconnectSocket();
+      return;
+    }
+
+    console.log(
+      "🌐 Starting global Bridgely real-time connection..."
+    );
+
+    const socket = connectSocket(token);
+
+    function handleConnect() {
+      console.log(
+        "⚡ Global Bridgely real-time connection established:",
+        socket.id
+      );
+    }
+
+    function handleDisconnect() {
+      console.log(
+        "⚡ Global Bridgely real-time connection closed"
+      );
+    }
+
+    function handleConnectError(error) {
+      console.error(
+        "❌ Global Socket.IO connection error:",
+        error.message
+      );
+    }
+
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on(
+      "connect_error",
+      handleConnectError
+    );
+
+    if (socket.connected) {
+      handleConnect();
+    }
+
+    return () => {
+      socket.off("connect", handleConnect);
+      socket.off(
+        "disconnect",
+        handleDisconnect
+      );
+      socket.off(
+        "connect_error",
+        handleConnectError
+      );
+    };
+  }, [location.pathname]);
+
+  return null;
+}
+
 function App() {
   return (
     <BrowserRouter>
+      <GlobalSocket />
+
       <Routes>
         <Route
           path="/"
@@ -57,4 +130,3 @@ function App() {
 }
 
 export default App;
-

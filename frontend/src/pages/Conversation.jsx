@@ -9,7 +9,6 @@ import {
 
 import {
   connectSocket,
-  disconnectSocket,
 } from "../services/socket";
 
 function Conversation() {
@@ -18,6 +17,7 @@ function Conversation() {
 
   const [user, setUser] = useState(null);
   const [otherUser, setOtherUser] = useState(null);
+  const [otherUserOnline, setOtherUserOnline] = useState(false);
   const [messages, setMessages] = useState([]);
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
@@ -25,6 +25,8 @@ function Conversation() {
   const [error, setError] = useState("");
 
   const messagesEndRef = useRef(null);
+
+  const otherUserRef = useRef(null);
 
   useEffect(() => {
     const token =
@@ -54,9 +56,19 @@ function Conversation() {
 
     loadConversation();
     loadMessages();
+  }, [conversationId, user]);
+
+  useEffect(() => {
+    if (!conversationId || !user) {
+      return;
+    }
 
     const token =
       sessionStorage.getItem("bridgelyToken");
+
+    if (!token) {
+      return;
+    }
 
     const socket = connectSocket(token);
 
@@ -92,6 +104,27 @@ function Conversation() {
       });
     }
 
+    function handlePresenceUpdate(presence) {
+      console.log(
+        "🟢 Presence update received:",
+        presence
+      );
+
+      const currentOtherUser =
+        otherUserRef.current;
+
+      if (
+        !currentOtherUser ||
+        presence.userId !== currentOtherUser.id
+      ) {
+        return;
+      }
+
+      setOtherUserOnline(
+        presence.status === "online"
+      );
+    }
+
     function handleSocketError(socketError) {
       console.error(
         "Socket error:",
@@ -108,10 +141,16 @@ function Conversation() {
       console.log(
         "⚡ Bridgely real-time connection closed"
       );
+
+      setOtherUserOnline(false);
     }
 
     socket.on("connect", handleConnect);
     socket.on("message:new", handleMessage);
+    socket.on(
+      "presence:update",
+      handlePresenceUpdate
+    );
     socket.on("socket-error", handleSocketError);
     socket.on("disconnect", handleDisconnect);
 
@@ -128,6 +167,10 @@ function Conversation() {
       socket.off("connect", handleConnect);
       socket.off("message:new", handleMessage);
       socket.off(
+        "presence:update",
+        handlePresenceUpdate
+      );
+      socket.off(
         "socket-error",
         handleSocketError
       );
@@ -136,7 +179,7 @@ function Conversation() {
         handleDisconnect
       );
 
-      disconnectSocket();
+      
     };
   }, [conversationId, user]);
 
@@ -163,6 +206,9 @@ function Conversation() {
         )?.user;
 
       setOtherUser(participant || null);
+
+      otherUserRef.current =
+        participant || null;
     } catch (err) {
       console.error(
         "Load conversation details error:",
@@ -315,6 +361,24 @@ function Conversation() {
                 <span className="conversation-username">
                   @{otherUser.username}
                 </span>
+              )}
+
+              {otherUser && (
+                <div className="conversation-presence">
+                  <span
+                    className={`presence-dot ${
+                      otherUserOnline
+                        ? "presence-online"
+                        : "presence-offline"
+                    }`}
+                  />
+
+                  <span>
+                    {otherUserOnline
+                      ? "Online"
+                      : "Offline"}
+                  </span>
+                </div>
               )}
             </div>
           </div>
