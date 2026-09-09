@@ -13,6 +13,7 @@ import Verify from "./pages/Verify";
 import Home from "./pages/Home";
 import Search from "./pages/Search";
 import Conversation from "./pages/Conversation";
+import Rooms from "./pages/Rooms";
 
 import {
   connectSocket,
@@ -119,6 +120,8 @@ function App() {
           path="/search"
           element={<Search />}
         />
+
+        <Route path="/rooms" element={<Rooms />} />
 
         <Route
           path="/conversation/:conversationId"

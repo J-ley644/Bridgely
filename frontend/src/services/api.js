@@ -207,3 +207,66 @@ export async function sendConversationMessage(
   );
 }
 
+/* =========================
+   ROOM API
+========================= */
+
+export async function createRoom({
+  name,
+  description,
+  privacy,
+}) {
+  return apiRequest("/rooms", {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      name,
+      description,
+      privacy,
+    }),
+  });
+}
+
+export async function getMyRooms() {
+  return apiRequest("/rooms", {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+}
+
+export async function getRoom(
+  roomId
+) {
+  return apiRequest(
+    `/rooms/${roomId}`,
+    {
+      method: "GET",
+      headers: getAuthHeaders(),
+    }
+  );
+}
+
+export async function joinRoom(
+  roomId
+) {
+  return apiRequest(
+    `/rooms/${roomId}/join`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+    }
+  );
+}
+
+export async function leaveRoom(
+  roomId
+) {
+  return apiRequest(
+    `/rooms/${roomId}/leave`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+    }
+  );
+}
+

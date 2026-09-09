@@ -7,6 +7,99 @@ datasource db {
   provider = "postgresql"
 }
 
+model User {
+  id                        String               @id @default(uuid())
+  username                  String               @unique
+  displayName               String
+  email                     String?              @unique
+  passwordHash              String?
+  bio                       String?
+  avatarUrl                 String?
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+  emailVerified             Boolean              @default(false)
+  phoneNumber               String?              @unique
+  verificationAttempts      Int                  @default(0)
+  verificationCodeExpiresAt DateTime?
+  verificationCodeHash      String?
+  verificationMethod        VerificationMethod?
+  firebaseUid               String?              @unique
+  conversations             ConversationMember[]
+  messages                  Message[]
+  roomsCreated              Room[]               @relation("RoomCreator")
+  roomMemberships           RoomMember[]
+
+  @@index([username])
+}
+
+model Conversation {
+  id        String               @id @default(uuid())
+  type      ConversationType     @default(DIRECT)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  members   ConversationMember[]
+  messages  Message[]
+}
+
+model ConversationMember {
+  id             String       @id @default(uuid())
+  userId         String
+  conversationId String
+  joinedAt       DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, conversationId])
+  @@index([conversationId])
+}
+
+model Message {
+  id             String        @id @default(uuid())
+  content        String
+  type           MessageType   @default(TEXT)
+  senderId       String
+  conversationId String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  roomId         String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  room           Room?         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender         User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([roomId])
+  @@index([senderId])
+}
+
+model Room {
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  imageUrl    String?
+  privacy     RoomPrivacy  @default(PRIVATE)
+  creatorId   String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  messages    Message[]
+  creator     User         @relation("RoomCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  members     RoomMember[]
+
+  @@index([creatorId])
+}
+
+model RoomMember {
+  id       String   @id @default(uuid())
+  userId   String
+  roomId   String
+  role     RoomRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+  room     Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@index([roomId])
+}
+
 enum ConversationType {
   DIRECT
   ROOM
@@ -30,115 +123,4 @@ enum MessageType {
 enum VerificationMethod {
   EMAIL
   SMS
-}
-
-model User {
-  id           String   @id @default(uuid())
-  firebaseUid  String?  @unique
-  username     String   @unique
-  displayName  String
-
-  email        String?  @unique
-  phoneNumber  String?  @unique
-
-  passwordHash String?
-
-  bio          String?
-  avatarUrl    String?
-
-  emailVerified            Boolean  @default(false)
-  verificationMethod       VerificationMethod?
-  verificationCodeHash     String?
-  verificationCodeExpiresAt DateTime?
-  verificationAttempts     Int      @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  conversations  ConversationMember[]
-  messages       Message[]
-  roomsCreated   Room[]               @relation("RoomCreator")
-  roomMemberships RoomMember[]
-
-  @@index([username])
-}
-
-model Conversation {
-  id        String           @id @default(uuid())
-  type      ConversationType @default(DIRECT)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  members   ConversationMember[]
-  messages  Message[]
-}
-
-model ConversationMember {
-  id             String @id @default(uuid())
-  userId         String
-  conversationId String
-
-  joinedAt DateTime @default(now())
-
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, conversationId])
-  @@index([conversationId])
-}
-
-model Message {
-  id             String      @id @default(uuid())
-  content        String
-  type           MessageType @default(TEXT)
-
-  senderId       String
-  conversationId String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  sender       User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  room         Room?         @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  roomId       String?
-
-  @@index([conversationId])
-  @@index([roomId])
-  @@index([senderId])
-}
-
-model Room {
-  id          String      @id @default(uuid())
-  name        String
-  description String?
-  imageUrl    String?
-  privacy     RoomPrivacy @default(PRIVATE)
-
-  creatorId String
-  creator   User @relation("RoomCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  members  RoomMember[]
-  messages Message[]
-
-  @@index([creatorId])
-}
-
-model RoomMember {
-  id     String   @id @default(uuid())
-  userId String
-  roomId String
-  role   RoomRole @default(MEMBER)
-
-  joinedAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, roomId])
-  @@index([roomId])
 }
