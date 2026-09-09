@@ -1,7 +1,11 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { searchUser } from "../services/api";
+import {
+  createDirectConversation,
+  searchUser,
+} from "../services/api";
 
 function Search() {
   const navigate = useNavigate();
@@ -9,6 +13,7 @@ function Search() {
   const [username, setUsername] = useState("");
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [startingChat, setStartingChat] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSearch(event) {
@@ -29,27 +34,83 @@ function Search() {
     setLoading(true);
 
     try {
-      const result = await searchUser(cleanUsername);
+      const result =
+        await searchUser(cleanUsername);
 
       if (result.user) {
         setUser(result.user);
       } else {
-        setError("No Bridgely user found with that username.");
+        setError(
+          "No Bridgely user found with that username."
+        );
       }
     } catch (err) {
+      console.error(
+        "Search user error:",
+        err
+      );
+
       setError(
-        err.message || "Unable to search for this user."
+        err.message ||
+          "Unable to search for this user."
       );
     } finally {
       setLoading(false);
     }
   }
 
+  async function handleStartChat() {
+    if (!user || startingChat) {
+      return;
+    }
+
+    setError("");
+    setStartingChat(true);
+
+    try {
+      const result =
+        await createDirectConversation(
+          user.username
+        );
+
+      const conversation =
+        result.conversation;
+
+      if (!conversation?.id) {
+        throw new Error(
+          "The conversation could not be created."
+        );
+      }
+
+      navigate(
+        `/conversation/${conversation.id}`
+      );
+    } catch (err) {
+      console.error(
+        "Start conversation error:",
+        err
+      );
+
+      setError(
+        err.message ||
+          "Unable to start this conversation."
+      );
+    } finally {
+      setStartingChat(false);
+    }
+  }
+
   return (
     <div className="search-page">
       <header className="home-header">
-        <Link to="/home" className="home-logo">
-          <span className="brand-mark">B</span>
+        <Link
+          to="/home"
+          className="home-logo"
+        >
+          <span className="brand-mark">
+            B
+          </span>
+
           <span>Bridgely</span>
         </Link>
 
@@ -63,13 +124,15 @@ function Search() {
 
       <main className="search-main">
         <div className="search-heading">
-          <span className="section-label">DISCOVER</span>
+          <span className="section-label">
+            DISCOVER
+          </span>
 
           <h1>Find someone</h1>
 
           <p>
-            Search for people by their unique Bridgely
-            username.
+            Search for people by their unique
+            Bridgely username.
           </p>
         </div>
 
@@ -85,7 +148,9 @@ function Search() {
               placeholder="username"
               value={username}
               onChange={(event) =>
-                setUsername(event.target.value)
+                setUsername(
+                  event.target.value
+                )
               }
               autoFocus
             />
@@ -96,7 +161,9 @@ function Search() {
             className="search-button"
             disabled={loading}
           >
-            {loading ? "Searching..." : "Search"}
+            {loading
+              ? "Searching..."
+              : "Search"}
           </button>
         </form>
 
@@ -115,16 +182,31 @@ function Search() {
             </div>
 
             <div className="found-user-info">
-              <h2>{user.displayName}</h2>
+              <h2>
+                {user.displayName}
+              </h2>
 
-              <span>@{user.username}</span>
+              <span>
+                @{user.username}
+              </span>
 
-              {user.bio && <p>{user.bio}</p>}
+              {user.bio && (
+                <p>{user.bio}</p>
+              )}
             </div>
 
-            <button className="start-chat-button">
-              Message
-              <span>→</span>
+            <button
+              className="start-chat-button"
+              onClick={handleStartChat}
+              disabled={startingChat}
+            >
+              {startingChat
+                ? "Opening..."
+                : "Message"}
+
+              {!startingChat && (
+                <span>→</span>
+              )}
             </button>
           </div>
         )}
@@ -133,10 +215,12 @@ function Search() {
           <div>✓</div>
 
           <p>
-            <strong>Private by design.</strong>
+            <strong>
+              Private by design.
+            </strong>
             <br />
-            Phone numbers are never displayed in user
-            search.
+            Phone numbers are never displayed
+            in user search.
           </p>
         </div>
       </main>
@@ -145,3 +229,4 @@ function Search() {
 }
 
 export default Search;
+

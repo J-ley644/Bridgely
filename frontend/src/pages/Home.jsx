@@ -1,10 +1,17 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { getConversations } from "../services/api";
+
 function Home() {
   const navigate = useNavigate();
+
   const [user, setUser] = useState(null);
+  const [conversations, setConversations] = useState([]);
+  const [loadingConversations, setLoadingConversations] =
+    useState(true);
+  const [conversationError, setConversationError] =
+    useState("");
 
   useEffect(() => {
     const token = sessionStorage.getItem("bridgelyToken");
@@ -24,11 +31,81 @@ function Home() {
     }
   }, [navigate]);
 
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    loadConversations();
+  }, [user]);
+
+  async function loadConversations() {
+    setLoadingConversations(true);
+    setConversationError("");
+
+    try {
+      const result = await getConversations();
+
+      setConversations(result.conversations || []);
+    } catch (error) {
+      console.error(
+        "Load conversations error:",
+        error
+      );
+
+      setConversationError(
+        error.message ||
+          "Unable to load your conversations."
+      );
+    } finally {
+      setLoadingConversations(false);
+    }
+  }
+
   function handleLogout() {
     sessionStorage.removeItem("bridgelyToken");
     sessionStorage.removeItem("bridgelyUser");
 
     navigate("/login");
+  }
+
+  function getOtherMember(conversation) {
+    const members = conversation.members || [];
+
+    return (
+      members.find(
+        (member) => member.userId !== user?.id
+      )?.user || null
+    );
+  }
+
+  function getConversationPreview(conversation) {
+    const lastMessage = conversation.messages?.[0];
+
+    if (!lastMessage) {
+      return "Start a conversation";
+    }
+
+    if (lastMessage.senderId === user?.id) {
+      return `You: ${lastMessage.content}`;
+    }
+
+    return lastMessage.content;
+  }
+
+  function formatConversationTime(conversation) {
+    const lastMessage = conversation.messages?.[0];
+
+    if (!lastMessage?.createdAt) {
+      return "";
+    }
+
+    const date = new Date(lastMessage.createdAt);
+
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   if (!user) {
@@ -45,7 +122,9 @@ function Home() {
 
         <div className="home-profile">
           <div className="home-avatar">
-            {user.displayName?.charAt(0).toUpperCase()}
+            {user.displayName
+              ?.charAt(0)
+              .toUpperCase()}
           </div>
 
           <div className="home-user-info">
@@ -64,7 +143,9 @@ function Home() {
 
       <main className="home-main">
         <section className="welcome-section">
-          <span className="section-label">YOUR SPACE</span>
+          <span className="section-label">
+            YOUR SPACE
+          </span>
 
           <h1>
             Welcome back,{" "}
@@ -72,8 +153,8 @@ function Home() {
           </h1>
 
           <p>
-            Find people, start conversations, and connect
-            without sharing your phone number.
+            Find people, start conversations, and
+            connect without sharing your phone number.
           </p>
         </section>
 
@@ -82,7 +163,9 @@ function Home() {
             <div className="panel-icon">⌕</div>
 
             <div>
-              <span className="panel-label">DISCOVER</span>
+              <span className="panel-label">
+                DISCOVER
+              </span>
 
               <h2>Find someone</h2>
 
@@ -117,13 +200,87 @@ function Home() {
               </p>
             </div>
 
-            <div className="empty-conversations">
-              <div className="empty-circle">+</div>
+            {loadingConversations ? (
+              <div className="empty-conversations">
+                <div className="empty-circle">◌</div>
 
-              <span>
-                No conversations yet
-              </span>
-            </div>
+                <span>
+                  Loading conversations...
+                </span>
+              </div>
+            ) : conversationError ? (
+              <div className="empty-conversations">
+                <div className="empty-circle">!</div>
+
+                <span>{conversationError}</span>
+              </div>
+            ) : conversations.length === 0 ? (
+              <div className="empty-conversations">
+                <div className="empty-circle">+</div>
+
+                <span>
+                  No conversations yet
+                </span>
+              </div>
+            ) : (
+              <div className="conversation-list">
+                {conversations.map((conversation) => {
+                  const otherUser =
+                    getOtherMember(conversation);
+
+                  return (
+                    <button
+                      key={conversation.id}
+                      className="conversation-item"
+                      onClick={() =>
+                        navigate(
+                          `/conversation/${conversation.id}`
+                        )
+                      }
+                    >
+                      <div className="conversation-item-avatar">
+                        {otherUser?.displayName
+                          ?.charAt(0)
+                          .toUpperCase() || "B"}
+                      </div>
+
+                      <div className="conversation-item-content">
+                        <div className="conversation-item-top">
+                          <strong>
+                            {otherUser?.displayName ||
+                              "Bridgely user"}
+                          </strong>
+
+                          <span>
+                            {formatConversationTime(
+                              conversation
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="conversation-item-bottom">
+                          <span>
+                            {otherUser?.username
+                              ? `@${otherUser.username}`
+                              : ""}
+                          </span>
+
+                          <p>
+                            {getConversationPreview(
+                              conversation
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className="conversation-arrow">
+                        →
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </section>
 
@@ -131,7 +288,9 @@ function Home() {
           <div className="privacy-mark">✓</div>
 
           <div>
-            <strong>Your number stays private.</strong>
+            <strong>
+              Your number stays private.
+            </strong>
 
             <p>
               People connect with you through your
@@ -145,4 +304,3 @@ function Home() {
 }
 
 export default Home;
-

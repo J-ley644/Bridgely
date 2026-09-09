@@ -5,11 +5,11 @@ async function apiRequest(endpoint, options = {}) {
   const response = await fetch(
     `${API_BASE_URL}${endpoint}`,
     {
+      ...options,
       headers: {
         "Content-Type": "application/json",
         ...(options.headers || {}),
       },
-      ...options,
     }
   );
 
@@ -22,6 +22,15 @@ async function apiRequest(endpoint, options = {}) {
   }
 
   return data;
+}
+
+function getAuthHeaders() {
+  const token =
+    sessionStorage.getItem("bridgelyToken");
+
+  return {
+    Authorization: `Bearer ${token}`,
+  };
 }
 
 export async function registerUser(userData) {
@@ -122,20 +131,78 @@ export async function registerFirebaseUser({
 export async function searchUser(
   username
 ) {
-  const token =
-    sessionStorage.getItem(
-      "bridgelyToken"
-    );
-
   return apiRequest(
     `/users/search?username=${encodeURIComponent(
       username
     )}`,
     {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: getAuthHeaders(),
+    }
+  );
+}
+
+export async function createDirectConversation(
+  username
+) {
+  return apiRequest(
+    "/conversations/direct",
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        username,
+      }),
+    }
+  );
+}
+
+export async function getConversations() {
+  return apiRequest(
+    "/conversations",
+    {
+      method: "GET",
+      headers: getAuthHeaders(),
+    }
+  );
+}
+
+export async function getConversation(
+  conversationId
+) {
+  return apiRequest(
+    `/conversations/${conversationId}`,
+    {
+      method: "GET",
+      headers: getAuthHeaders(),
+    }
+  );
+}
+
+export async function getConversationMessages(
+  conversationId
+) {
+  return apiRequest(
+    `/conversations/${conversationId}/messages`,
+    {
+      method: "GET",
+      headers: getAuthHeaders(),
+    }
+  );
+}
+
+export async function sendConversationMessage(
+  conversationId,
+  content
+) {
+  return apiRequest(
+    `/conversations/${conversationId}/messages`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        content,
+      }),
     }
   );
 }
