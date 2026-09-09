@@ -1,8 +1,12 @@
+
 import {
   registerUser,
+  registerFirebaseUser,
   verifyEmail,
   resendVerificationCode,
   loginUser,
+  loginFirebaseUser,
+  linkFirebaseAccount,
 } from "../services/auth.service.js";
 
 export async function register(req, res) {
@@ -61,6 +65,58 @@ export async function register(req, res) {
       success: false,
       message:
         error.message || "Registration failed",
+    });
+  }
+}
+
+export async function registerFirebase(req, res) {
+  try {
+    const {
+      idToken,
+      username,
+      displayName,
+      phoneNumber,
+    } = req.body;
+
+    if (
+      !idToken ||
+      !username ||
+      !displayName ||
+      !phoneNumber
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Firebase ID token, username, display name, and phone number are required",
+      });
+    }
+
+    const result =
+      await registerFirebaseUser({
+        idToken,
+        username,
+        displayName,
+        phoneNumber,
+      });
+
+    return res.status(201).json({
+      success: true,
+      message: result.alreadyExists
+        ? "Firebase account is already connected to Bridgely"
+        : "Bridgely account created successfully",
+      ...result,
+    });
+  } catch (error) {
+    console.error(
+      "Firebase registration error:",
+      error
+    );
+
+    return res.status(400).json({
+      success: false,
+      message:
+        error.message ||
+        "Firebase registration failed",
     });
   }
 }
@@ -180,3 +236,81 @@ export async function login(req, res) {
     });
   }
 }
+
+export async function firebaseLogin(req, res) {
+  try {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Firebase ID token is required",
+      });
+    }
+
+    const result =
+      await loginFirebaseUser({
+        idToken,
+      });
+
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      ...result,
+    });
+  } catch (error) {
+    console.error(
+      "Firebase login error:",
+      error
+    );
+
+    return res.status(401).json({
+      success: false,
+      message:
+        error.message ||
+        "Firebase login failed",
+    });
+  }
+}
+
+export async function linkFirebase(req, res) {
+  try {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Firebase ID token is required",
+      });
+    }
+
+    const result =
+      await linkFirebaseAccount({
+        idToken,
+      });
+
+    return res.status(200).json({
+      success: true,
+      message:
+        result.alreadyLinked
+          ? "Firebase account is already linked"
+          : "Firebase account linked successfully",
+      ...result,
+    });
+  } catch (error) {
+    console.error(
+      "Firebase account linking error:",
+      error
+    );
+
+    return res.status(400).json({
+      success: false,
+      message:
+        error.message ||
+        "Failed to link Firebase account",
+    });
+  }
+}
+

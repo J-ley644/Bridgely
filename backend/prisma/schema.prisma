@@ -34,22 +34,23 @@ enum VerificationMethod {
 
 model User {
   id           String   @id @default(uuid())
+  firebaseUid  String?  @unique
   username     String   @unique
   displayName  String
 
   email        String?  @unique
   phoneNumber  String?  @unique
 
-  passwordHash String
+  passwordHash String?
 
   bio          String?
   avatarUrl    String?
 
   emailVerified            Boolean  @default(false)
-  verificationMethod        VerificationMethod?
+  verificationMethod       VerificationMethod?
   verificationCodeHash     String?
   verificationCodeExpiresAt DateTime?
-  verificationAttempts    Int      @default(0)
+  verificationAttempts     Int      @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

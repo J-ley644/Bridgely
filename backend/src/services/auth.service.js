@@ -1,8 +1,11 @@
+
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomInt } from "crypto";
 
 import prisma from "../config/prisma.js";
+import { firebaseAuth } from "../config/firebase.js";
+
 import {
   sendVerificationCode,
 } from "../providers/verification.provider.js";
@@ -192,8 +195,7 @@ export async function registerUser({
     await sendVerificationCode({
       method: normalizedMethod,
       email: normalizedEmail,
-      phoneNumber:
-        normalizedPhoneNumber,
+      phoneNumber: normalizedPhoneNumber,
       username: normalizedUsername,
       code,
     });
@@ -216,6 +218,213 @@ export async function registerUser({
   }
 
   return user;
+}
+
+/**
+ * Create a new Bridgely profile for a
+ * Firebase Authentication account.
+ *
+ * Firebase is responsible for:
+ * - email/password authentication
+ * - password security
+ * - email verification
+ * - Firebase identity
+ *
+ * Bridgely is responsible for:
+ * - username
+ * - display name
+ * - phone number
+ * - profile
+ * - conversations
+ * - rooms
+ * - messages
+ */
+export async function registerFirebaseUser({
+  idToken,
+  username,
+  displayName,
+  phoneNumber,
+}) {
+  if (!idToken) {
+    throw new Error(
+      "Firebase ID token is required"
+    );
+  }
+
+  if (!username || !displayName || !phoneNumber) {
+    throw new Error(
+      "Username, display name, and phone number are required"
+    );
+  }
+
+  let decodedToken;
+
+  try {
+    decodedToken =
+      await firebaseAuth.verifyIdToken(
+        idToken
+      );
+  } catch (error) {
+    console.error(
+      "Firebase registration token error:",
+      error
+    );
+
+    throw new Error(
+      "Invalid or expired Firebase authentication token"
+    );
+  }
+
+  const firebaseUid =
+    decodedToken.uid;
+
+  const firebaseEmail =
+    decodedToken.email
+      ?.trim()
+      .toLowerCase();
+
+  if (!firebaseEmail) {
+    throw new Error(
+      "Your Firebase account must have an email address"
+    );
+  }
+
+  const normalizedUsername =
+    normalizeUsername(username);
+
+  const normalizedPhoneNumber =
+    normalizePhoneNumber(phoneNumber);
+
+  const existingFirebaseUser =
+    await prisma.user.findUnique({
+      where: {
+        firebaseUid,
+      },
+    });
+
+  if (existingFirebaseUser) {
+    return {
+      created: false,
+      alreadyExists: true,
+      user: {
+        id: existingFirebaseUser.id,
+        username:
+          existingFirebaseUser.username,
+        displayName:
+          existingFirebaseUser.displayName,
+        email:
+          existingFirebaseUser.email,
+        phoneNumber:
+          existingFirebaseUser.phoneNumber,
+        emailVerified:
+          existingFirebaseUser.emailVerified,
+        verificationMethod:
+          existingFirebaseUser.verificationMethod,
+        bio:
+          existingFirebaseUser.bio,
+        avatarUrl:
+          existingFirebaseUser.avatarUrl,
+        createdAt:
+          existingFirebaseUser.createdAt,
+      },
+    };
+  }
+
+  const existingUsername =
+    await prisma.user.findUnique({
+      where: {
+        username: normalizedUsername,
+      },
+    });
+
+  if (existingUsername) {
+    throw new Error(
+      "Username is already taken"
+    );
+  }
+
+  const existingEmail =
+    await prisma.user.findUnique({
+      where: {
+        email: firebaseEmail,
+      },
+    });
+
+  if (existingEmail) {
+    throw new Error(
+      "An existing Bridgely account already uses this email. Please log in to that account instead."
+    );
+  }
+
+  const existingPhone =
+    await prisma.user.findUnique({
+      where: {
+        phoneNumber:
+          normalizedPhoneNumber,
+      },
+    });
+
+  if (existingPhone) {
+    throw new Error(
+      "Phone number is already registered"
+    );
+  }
+
+  const user =
+    await prisma.user.create({
+      data: {
+        firebaseUid,
+
+        username:
+          normalizedUsername,
+
+        displayName:
+          displayName.trim(),
+
+        email:
+          firebaseEmail,
+
+        phoneNumber:
+          normalizedPhoneNumber,
+
+        passwordHash: null,
+
+        emailVerified:
+          Boolean(
+            decodedToken.email_verified
+          ),
+
+        verificationMethod:
+          "EMAIL",
+
+        verificationCodeHash:
+          null,
+
+        verificationCodeExpiresAt:
+          null,
+
+        verificationAttempts: 0,
+      },
+
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        email: true,
+        phoneNumber: true,
+        emailVerified: true,
+        verificationMethod: true,
+        bio: true,
+        avatarUrl: true,
+        createdAt: true,
+      },
+    });
+
+  return {
+    created: true,
+    alreadyExists: false,
+    user,
+  };
 }
 
 export async function verifyEmail({
@@ -465,6 +674,12 @@ export async function loginUser({
     );
   }
 
+  if (!user.passwordHash) {
+    throw new Error(
+      "This account uses Firebase authentication. Please log in with your email and password."
+    );
+  }
+
   const passwordMatches =
     await bcrypt.compare(
       password,
@@ -520,3 +735,278 @@ export async function loginUser({
     },
   };
 }
+
+/**
+ * Authenticate a Firebase account and
+ * create a normal Bridgely JWT session.
+ *
+ * Firebase is responsible for validating:
+ * - email
+ * - password
+ * - Firebase identity
+ * - email verification
+ *
+ * Bridgely is responsible for:
+ * - locating the Bridgely profile
+ * - generating the Bridgely JWT
+ * - authorizing access to Bridgely APIs
+ */
+export async function loginFirebaseUser({
+  idToken,
+}) {
+  if (!idToken) {
+    throw new Error(
+      "Firebase ID token is required"
+    );
+  }
+
+  let decodedToken;
+
+  try {
+    decodedToken =
+      await firebaseAuth.verifyIdToken(
+        idToken
+      );
+  } catch (error) {
+    console.error(
+      "Firebase login token error:",
+      error
+    );
+
+    throw new Error(
+      "Invalid or expired Firebase authentication token"
+    );
+  }
+
+  const firebaseUid =
+    decodedToken.uid;
+
+  if (!decodedToken.email) {
+    throw new Error(
+      "Your Firebase account does not have an email address"
+    );
+  }
+
+  if (!decodedToken.email_verified) {
+    throw new Error(
+      "Please verify your email address before logging in"
+    );
+  }
+
+  const user =
+    await prisma.user.findUnique({
+      where: {
+        firebaseUid,
+      },
+    });
+
+  if (!user) {
+    throw new Error(
+      "No Bridgely account is linked to this Firebase account"
+    );
+  }
+
+  if (!user.emailVerified) {
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+
+      data: {
+        emailVerified: true,
+      },
+    });
+  }
+
+  if (!process.env.JWT_SECRET) {
+    throw new Error(
+      "JWT_SECRET is not configured"
+    );
+  }
+
+  const token = jwt.sign(
+    {
+      userId: user.id,
+      username: user.username,
+    },
+
+    process.env.JWT_SECRET,
+
+    {
+      expiresIn: "7d",
+    }
+  );
+
+  return {
+    token,
+
+    user: {
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      emailVerified: true,
+      verificationMethod:
+        user.verificationMethod,
+      bio: user.bio,
+      avatarUrl: user.avatarUrl,
+      createdAt: user.createdAt,
+    },
+  };
+}
+
+export async function linkFirebaseAccount({
+  idToken,
+}) {
+  if (!idToken) {
+    throw new Error(
+      "Firebase ID token is required"
+    );
+  }
+
+  let decodedToken;
+
+  try {
+    decodedToken =
+      await firebaseAuth.verifyIdToken(
+        idToken
+      );
+  } catch (error) {
+    console.error(
+      "Firebase token verification error:",
+      error
+    );
+
+    throw new Error(
+      "Invalid or expired Firebase authentication token"
+    );
+  }
+
+  const firebaseUid =
+    decodedToken.uid;
+
+  const firebaseEmail =
+    decodedToken.email
+      ?.trim()
+      .toLowerCase();
+
+  if (!firebaseEmail) {
+    throw new Error(
+      "Firebase account does not have a verified email address"
+    );
+  }
+
+  if (!decodedToken.email_verified) {
+    throw new Error(
+      "Please verify your email address through Firebase before linking your account"
+    );
+  }
+
+  const existingFirebaseUser =
+    await prisma.user.findUnique({
+      where: {
+        firebaseUid,
+      },
+    });
+
+  if (existingFirebaseUser) {
+    const updatedUser =
+      await prisma.user.update({
+        where: {
+          id: existingFirebaseUser.id,
+        },
+
+        data: {
+          emailVerified: true,
+        },
+
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          email: true,
+          phoneNumber: true,
+          emailVerified: true,
+          verificationMethod: true,
+          bio: true,
+          avatarUrl: true,
+          createdAt: true,
+        },
+      });
+
+    return {
+      linked: true,
+      alreadyLinked: true,
+      user: updatedUser,
+    };
+  }
+
+  const user =
+    await prisma.user.findUnique({
+      where: {
+        email: firebaseEmail,
+      },
+    });
+
+  if (!user) {
+    throw new Error(
+      "No existing Bridgely account was found for this Firebase email"
+    );
+  }
+
+  if (
+    user.firebaseUid &&
+    user.firebaseUid !== firebaseUid
+  ) {
+    throw new Error(
+      "This Bridgely account is already linked to another Firebase account"
+    );
+  }
+
+  const linkedUser =
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+
+      data: {
+        firebaseUid,
+
+        emailVerified: true,
+
+        passwordHash: null,
+
+        verificationCodeHash:
+          null,
+
+        verificationCodeExpiresAt:
+          null,
+
+        verificationAttempts: 0,
+
+        verificationMethod:
+          "EMAIL",
+      },
+
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        email: true,
+        phoneNumber: true,
+        emailVerified: true,
+        verificationMethod: true,
+        bio: true,
+        avatarUrl: true,
+        createdAt: true,
+      },
+    });
+
+  return {
+    linked: true,
+    alreadyLinked: false,
+    user: linkedUser,
+  };
+}
+
