@@ -6,6 +6,8 @@ import {
   getConversationMessages as getMessages,
 } from "../services/conversation.service.js";
 
+import { getIO } from "../config/socket.js";
+
 export async function createDirect(req, res) {
   try {
     const { username } = req.body || {};
@@ -148,6 +150,15 @@ export async function sendConversationMessage(
       conversationId,
       req.user.userId,
       content.trim()
+    );
+
+    const io = getIO();
+
+    io.to(
+      `conversation:${conversationId}`
+    ).emit(
+      "message:new",
+      message
     );
 
     return res.status(201).json({

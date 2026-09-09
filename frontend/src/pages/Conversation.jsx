@@ -7,6 +7,11 @@ import {
   sendConversationMessage,
 } from "../services/api";
 
+import {
+  connectSocket,
+  disconnectSocket,
+} from "../services/socket";
+
 function Conversation() {
   const navigate = useNavigate();
   const { conversationId } = useParams();
@@ -49,6 +54,90 @@ function Conversation() {
 
     loadConversation();
     loadMessages();
+
+    const token =
+      sessionStorage.getItem("bridgelyToken");
+
+    const socket = connectSocket(token);
+
+    function handleConnect() {
+      console.log(
+        "⚡ Bridgely real-time connection established:",
+        socket.id
+      );
+
+      socket.emit(
+        "join-conversation",
+        conversationId
+      );
+    }
+
+    function handleMessage(message) {
+      console.log(
+        "📨 Real-time message received:",
+        message
+      );
+
+      setMessages((current) => {
+        const alreadyExists = current.some(
+          (existingMessage) =>
+            existingMessage.id === message.id
+        );
+
+        if (alreadyExists) {
+          return current;
+        }
+
+        return [...current, message];
+      });
+    }
+
+    function handleSocketError(socketError) {
+      console.error(
+        "Socket error:",
+        socketError
+      );
+
+      setError(
+        socketError?.message ||
+          "Real-time connection error."
+      );
+    }
+
+    function handleDisconnect() {
+      console.log(
+        "⚡ Bridgely real-time connection closed"
+      );
+    }
+
+    socket.on("connect", handleConnect);
+    socket.on("message:new", handleMessage);
+    socket.on("socket-error", handleSocketError);
+    socket.on("disconnect", handleDisconnect);
+
+    if (socket.connected) {
+      handleConnect();
+    }
+
+    return () => {
+      socket.emit(
+        "leave-conversation",
+        conversationId
+      );
+
+      socket.off("connect", handleConnect);
+      socket.off("message:new", handleMessage);
+      socket.off(
+        "socket-error",
+        handleSocketError
+      );
+      socket.off(
+        "disconnect",
+        handleDisconnect
+      );
+
+      disconnectSocket();
+    };
   }, [conversationId, user]);
 
   useEffect(() => {
@@ -133,10 +222,18 @@ function Conversation() {
         );
 
       if (result.data) {
-        setMessages((current) => [
-          ...current,
-          result.data,
-        ]);
+        setMessages((current) => {
+          const alreadyExists = current.some(
+            (message) =>
+              message.id === result.data.id
+          );
+
+          if (alreadyExists) {
+            return current;
+          }
+
+          return [...current, result.data];
+        });
       }
 
       setContent("");
