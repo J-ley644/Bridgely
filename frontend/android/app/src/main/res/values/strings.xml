@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Bridgely</string>
+    <string name="title_activity_main">Bridgely</string>
+    <string name="package_name">com.bridgely.app</string>
+    <string name="custom_url_scheme">com.bridgely.app</string>
+</resources>
