@@ -1,11 +1,15 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   BrowserRouter,
   Routes,
   Route,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
+import { App as CapacitorApp } from "@capacitor/app";
+
+import { getSession } from "./services/session";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -79,11 +83,114 @@ function GlobalSocket() {
   return null;
 }
 
+function AndroidBackHandler() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const listener = CapacitorApp.addListener("backButton", () => {
+      if (location.pathname.startsWith("/conversation/")) {
+        navigate("/home");
+        return;
+      }
+
+      if (location.pathname.startsWith("/rooms/")) {
+        navigate("/rooms");
+        return;
+      }
+
+      if (location.pathname === "/search") {
+        navigate("/home");
+        return;
+      }
+
+      if (location.pathname !== "/home") {
+        navigate(-1);
+        return;
+      }
+
+      CapacitorApp.exitApp();
+    });
+
+    return () => {
+      listener.then((handle) => handle.remove());
+    };
+  }, [location.pathname, navigate]);
+
+  return null;
+}
+
+function SessionRedirect() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const token = sessionStorage.getItem("bridgelyToken");
+
+    if (!token) {
+      return;
+    }
+
+    if (
+      location.pathname === "/" ||
+      location.pathname === "/login" ||
+      location.pathname === "/register" ||
+      location.pathname === "/verify"
+    ) {
+      navigate("/home", { replace: true });
+    }
+  }, [location.pathname, navigate]);
+
+  return null;
+}
+
 function App() {
+  const [sessionReady, setSessionReady] = useState(false);
+
+  useEffect(() => {
+    async function restoreSession() {
+      try {
+        const session = await getSession();
+
+        if (session?.token) {
+          sessionStorage.setItem(
+            "bridgelyToken",
+            session.token
+          );
+
+          if (session.user) {
+            sessionStorage.setItem(
+              "bridgelyUser",
+              JSON.stringify(session.user)
+            );
+          }
+        } else {
+          sessionStorage.removeItem("bridgelyToken");
+          sessionStorage.removeItem("bridgelyUser");
+        }
+      } catch (error) {
+        console.error(
+          "Failed to restore Bridgely session:",
+          error
+        );
+      } finally {
+        setSessionReady(true);
+      }
+    }
+
+    restoreSession();
+  }, []);
+
+  if (!sessionReady) {
+    return null;
+  }
+
   return (
     <ThemeProvider>
       <BrowserRouter>
         <GlobalSocket />
+        <AndroidBackHandler />
+        <SessionRedirect />
 
         <Routes>
           <Route
@@ -121,7 +228,10 @@ function App() {
             element={<Rooms />}
           />
 
-          <Route path="/rooms/:roomId" element={<Room />} />
+          <Route
+            path="/rooms/:roomId"
+            element={<Room />}
+          />
 
           <Route
             path="/conversation/:conversationId"

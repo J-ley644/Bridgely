@@ -9,6 +9,7 @@ import {
 
 import socket from "../services/socket";
 import ThemeToggle from "../components/ThemeToggle";
+import { clearSession } from "../services/session";
 
 function Home() {
   const navigate = useNavigate();
@@ -163,17 +164,14 @@ function Home() {
     }
   }
 
-  function handleLogout() {
-    sessionStorage.removeItem(
-      "bridgelyToken"
-    );
+  async function handleLogout() {
+  await clearSession();
 
-    sessionStorage.removeItem(
-      "bridgelyUser"
-    );
+  sessionStorage.removeItem("bridgelyToken");
+  sessionStorage.removeItem("bridgelyUser");
 
-    navigate("/login");
-  }
+  navigate("/login");
+}
 
   function getOtherMember(conversation) {
     const members =

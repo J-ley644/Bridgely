@@ -14,20 +14,15 @@ import {
   loginFirebaseUser,
 } from "../services/api";
 
+import { saveSession } from "../services/session";
+
 function Login() {
   const navigate = useNavigate();
 
-  const [identifier, setIdentifier] =
-    useState("");
-
-  const [password, setPassword] =
-    useState("");
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -40,8 +35,6 @@ function Login() {
     try {
       /*
        * Firebase accounts use email.
-       *
-       * Legacy accounts continue using username.
        */
       if (value.includes("@")) {
         const firebaseCredential =
@@ -51,8 +44,7 @@ function Login() {
             password
           );
 
-        const firebaseUser =
-          firebaseCredential.user;
+        const firebaseUser = firebaseCredential.user;
 
         if (!firebaseUser.emailVerified) {
           setError(
@@ -60,7 +52,6 @@ function Login() {
           );
 
           await signOut(auth);
-
           return;
         }
 
@@ -68,9 +59,12 @@ function Login() {
           await firebaseUser.getIdToken(true);
 
         const result =
-          await loginFirebaseUser(
-            idToken
-          );
+          await loginFirebaseUser(idToken);
+
+        await saveSession(
+          result.token,
+          result.user
+        );
 
         sessionStorage.setItem(
           "bridgelyToken",
@@ -83,7 +77,6 @@ function Login() {
         );
 
         navigate("/home");
-
         return;
       }
 
@@ -93,6 +86,11 @@ function Login() {
       const result = await loginUser(
         value,
         password
+      );
+
+      await saveSession(
+        result.token,
+        result.user
       );
 
       sessionStorage.setItem(
@@ -107,17 +105,11 @@ function Login() {
 
       navigate("/home");
     } catch (err) {
-      console.error(
-        "Login error:",
-        err
-      );
+      console.error("Login error:", err);
 
       let message =
         err.message || "Login failed";
 
-      /*
-       * Firebase-specific errors.
-       */
       if (
         err.code ===
         "auth/invalid-credential"
@@ -153,6 +145,7 @@ function Login() {
   return (
     <div className="auth-page">
       <div className="auth-shell">
+
         <div className="auth-brand">
           <Link
             to="/"
@@ -167,6 +160,7 @@ function Login() {
         </div>
 
         <div className="auth-card">
+
           <div className="auth-heading">
             <span className="section-label">
               WELCOME BACK
@@ -193,6 +187,7 @@ function Login() {
             className="auth-form"
             onSubmit={handleSubmit}
           >
+
             <div className="form-group">
               <label htmlFor="identifier">
                 Username or email
@@ -254,6 +249,7 @@ function Login() {
                 <span>→</span>
               )}
             </button>
+
           </form>
 
           <div className="auth-divider">
@@ -268,6 +264,7 @@ function Login() {
           >
             Create an account
           </Link>
+
         </div>
 
         <p className="auth-footer">
@@ -275,6 +272,7 @@ function Login() {
           Your username is how people find
           you on Bridgely.
         </p>
+
       </div>
     </div>
   );

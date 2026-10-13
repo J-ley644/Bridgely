@@ -1,4 +1,4 @@
-
+﻿
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap");
 
 :root {
@@ -4760,3 +4760,103 @@ html[data-theme="dark"] .room-message-form {
   background: rgba(24, 21, 31, 0.98);
   border-top-color: #35303d;
 }
+/* BridgeLy app-shell scroll fix */
+.messaging-home {
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding-bottom: 0 !important;
+}
+
+.messaging-header {
+  flex: 0 0 auto !important;
+}
+
+.messaging-main {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding-bottom: 24px !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.messaging-bottom-nav {
+  position: relative !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  flex: 0 0 72px !important;
+  width: 100% !important;
+  height: 72px !important;
+  min-height: 72px !important;
+  margin: 0 !important;
+  transform: none !important;
+  z-index: 1000 !important;
+}
+
+@media (max-width: 700px) {
+  .messaging-home {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+  }
+
+  .messaging-main {
+    padding-bottom: 18px !important;
+  }
+}
+
+/* Flat messaging rows — WhatsApp-style */
+.message-list {
+  width: 100% !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.message-list-item {
+  width: 100% !important;
+  min-height: 72px !important;
+  margin: 0 !important;
+  padding: 12px 4px !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(120, 110, 130, 0.12) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.message-list-item:hover {
+  background: rgba(120, 110, 130, 0.05) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.message-list-item:last-child {
+  border-bottom: 0 !important;
+}
+
+.message-avatar {
+  border-radius: 50% !important;
+  box-shadow: none !important;
+}
+
+.message-list-content {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .message-list-item,
+.dark .message-list-item {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .message-list-item:hover,
+.dark .message-list-item:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
