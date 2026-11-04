@@ -8,6 +8,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { App as CapacitorApp } from "@capacitor/app";
+import { Preferences } from "@capacitor/preferences";
 
 import { getSession } from "./services/session";
 
@@ -146,37 +147,60 @@ function SessionRedirect() {
 
 function App() {
   const [sessionReady, setSessionReady] = useState(false);
+  const [sessionDiagnostics, setSessionDiagnostics] = useState(null);
 
   useEffect(() => {
     async function restoreSession() {
-      try {
-        const session = await getSession();
+  let nativeToken = false;
+  let nativeUser = false;
 
-        if (session?.token) {
-          sessionStorage.setItem(
-            "bridgelyToken",
-            session.token
-          );
+  try {
+    const token = await Preferences.get({
+      key: "bridgelyToken",
+    });
 
-          if (session.user) {
-            sessionStorage.setItem(
-              "bridgelyUser",
-              JSON.stringify(session.user)
-            );
-          }
-        } else {
-          sessionStorage.removeItem("bridgelyToken");
-          sessionStorage.removeItem("bridgelyUser");
-        }
-      } catch (error) {
-        console.error(
-          "Failed to restore Bridgely session:",
-          error
+    const user = await Preferences.get({
+      key: "bridgelyUser",
+    });
+
+    nativeToken = !!token.value;
+    nativeUser = !!user.value;
+  } catch (error) {
+    console.error("Native diagnostic failed:", error);
+  }
+
+  const localToken = !!localStorage.getItem("bridgelyToken");
+  const localUser = !!localStorage.getItem("bridgelyUser");
+
+  setSessionDiagnostics({
+    nativeToken,
+    nativeUser,
+    localToken,
+    localUser,
+  });
+
+  try {
+    const session = await getSession();
+
+    if (session?.token) {
+      sessionStorage.setItem("bridgelyToken", session.token);
+
+      if (session.user) {
+        sessionStorage.setItem(
+          "bridgelyUser",
+          JSON.stringify(session.user)
         );
-      } finally {
-        setSessionReady(true);
       }
+    } else {
+      sessionStorage.removeItem("bridgelyToken");
+      sessionStorage.removeItem("bridgelyUser");
     }
+  } catch (error) {
+    console.error("Failed to restore Bridgely session:", error);
+  } finally {
+    setSessionReady(true);
+  }
+}
 
     restoreSession();
   }, []);
@@ -188,6 +212,29 @@ function App() {
   return (
     <ThemeProvider>
       <BrowserRouter>
+      {sessionDiagnostics && (
+  <div
+    style={{
+      position: "fixed",
+      top: 10,
+      left: 10,
+      right: 10,
+      zIndex: 99999,
+      background: "#111827",
+      color: "white",
+      padding: 14,
+      borderRadius: 10,
+      fontSize: 13,
+    }}
+  >
+    <strong>Bridgely Session Diagnostics</strong>
+
+    <div>Native token: {sessionDiagnostics.nativeToken ? "YES" : "NO"}</div>
+    <div>Native user: {sessionDiagnostics.nativeUser ? "YES" : "NO"}</div>
+    <div>Local token: {sessionDiagnostics.localToken ? "YES" : "NO"}</div>
+    <div>Local user: {sessionDiagnostics.localUser ? "YES" : "NO"}</div>
+  </div>
+)}
         <GlobalSocket />
         <AndroidBackHandler />
         <SessionRedirect />
