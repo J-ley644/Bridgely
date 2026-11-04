@@ -4,23 +4,26 @@ const API_BASE_URL =
   "https://bridgely-8itn.onrender.com/api";
 
 async function apiRequest(endpoint, options = {}) {
-  const response = await fetch(
-    `${API_BASE_URL}${endpoint}`,
-    {
+  const url = `${API_BASE_URL}${endpoint}`;
+
+  let response;
+
+  try {
+    response = await fetch(url, {
       ...options,
       headers: {
         "Content-Type": "application/json",
         ...(options.headers || {}),
       },
-    }
-  );
+    });
+  } catch (error) {
+    throw new Error(`Network error: ${error.message} | URL: ${url}`);
+  }
 
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(
-      data.message || "Something went wrong"
-    );
+    throw new Error(data.message || "Something went wrong");
   }
 
   return data;

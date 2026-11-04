@@ -34,6 +34,7 @@ function Home() {
     useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [conversationFilter, setConversationFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("chats");
 
   useEffect(() => {
@@ -273,53 +274,75 @@ function Home() {
     return onlineUserIds.has(userId);
   }
 
-  const filteredConversations =
-    useMemo(() => {
-      const query =
-        searchQuery.trim().toLowerCase();
+  
+  const filteredConversations = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
 
-      if (!query) {
-        return conversations;
-      }
+    let result = conversations.filter((conversation) => {
+      const otherUser = getOtherMember(conversation);
+      const name = otherUser?.displayName || "";
+      const username = otherUser?.username || "";
+      const preview = getConversationPreview(conversation);
 
-      return conversations.filter(
-        (conversation) => {
-          const otherUser =
-            getOtherMember(
-              conversation
-            );
-
-          const name =
-            otherUser?.displayName ||
-            "";
-
-          const username =
-            otherUser?.username ||
-            "";
-
-          const preview =
-            getConversationPreview(
-              conversation
-            );
-
-          return (
-            name
-              .toLowerCase()
-              .includes(query) ||
-            username
-              .toLowerCase()
-              .includes(query) ||
-            preview
-              .toLowerCase()
-              .includes(query)
-          );
-        }
+      return (
+        name.toLowerCase().includes(query) ||
+        username.toLowerCase().includes(query) ||
+        preview.toLowerCase().includes(query)
       );
-    }, [
-      conversations,
-      searchQuery,
-      user,
-    ]);
+    });
+
+    if (conversationFilter === "groups") {
+      result = result.filter(
+        (conversation) =>
+          conversation.isGroup === true ||
+          conversation.type === "GROUP"
+      );
+    }
+
+    if (conversationFilter === "unread") {
+      result = result.filter(
+        (conversation) =>
+          (conversation.unreadCount || 0) > 0 ||
+          conversation.unread === true
+      );
+    }
+
+    if (conversationFilter === "favourites") {
+      result = result.filter(
+        (conversation) => conversation.isFavorite === true
+      );
+    }
+
+    if (conversationFilter === "recents") {
+      result = [...result].sort((a, b) => {
+        const getTime = (conversation) => {
+          const lastMessage =
+            conversation.messages?.[
+              conversation.messages.length - 1
+            ];
+
+          const value =
+            lastMessage?.createdAt ||
+            conversation.updatedAt ||
+            conversation.lastMessageAt ||
+            conversation.createdAt;
+
+          const time = value ? new Date(value).getTime() : 0;
+          return Number.isNaN(time) ? 0 : time;
+        };
+
+        return getTime(b) - getTime(a);
+      });
+    }
+
+    return result;
+  }, [
+    conversations,
+    searchQuery,
+    conversationFilter,
+    user,
+  ]);
+
 
   const filteredRooms =
     useMemo(() => {
@@ -520,6 +543,32 @@ function Home() {
                 {conversations.length}
               </span>
             </div>
+
+            
+<div className="conversation-filters">
+  {[
+    { id: "all", label: "All" },
+    { id: "recents", label: "Recents" },
+    { id: "groups", label: "Groups" },
+    { id: "unread", label: "Unread" },
+    { id: "favourites", label: "Favourites" },
+  ].map((filter) => (
+    <button
+      key={filter.id}
+      type="button"
+      className={
+        conversationFilter === filter.id
+          ? "conversation-filter active"
+          : "conversation-filter"
+      }
+      aria-pressed={conversationFilter === filter.id}
+      onClick={() => setConversationFilter(filter.id)}
+    >
+      {filter.label}
+    </button>
+  ))}
+</div>
+
 
             {loadingConversations ? (
               <div className="messaging-empty">
