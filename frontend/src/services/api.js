@@ -196,9 +196,12 @@ export async function getConversationMessages(
   );
 }
 
+
 export async function sendConversationMessage(
   conversationId,
-  content
+  content,
+  replyToId = null,
+  clientMessageId = null
 ) {
   return apiRequest(
     `/conversations/${conversationId}/messages`,
@@ -207,10 +210,13 @@ export async function sendConversationMessage(
       headers: getAuthHeaders(),
       body: JSON.stringify({
         content,
+        replyToId,
+        clientMessageId,
       }),
     }
   );
 }
+
 
 /* =========================
    ROOM API
@@ -275,9 +281,11 @@ export async function getRoomMessages(
   );
 }
 
+
 export async function sendRoomMessage(
   roomId,
-  content
+  content,
+  clientMessageId = null
 ) {
   return apiRequest(
     `/rooms/${roomId}/messages`,
@@ -286,10 +294,12 @@ export async function sendRoomMessage(
       headers: getAuthHeaders(),
       body: JSON.stringify({
         content,
+        clientMessageId,
       }),
     }
   );
 }
+
 
 export async function leaveRoom(
   roomId

@@ -5,6 +5,10 @@ import {
   createRoom,
   getMyRooms,
 } from "../services/api";
+import {
+  cacheRooms,
+  getCachedRooms,
+} from "../services/offlineStorage";
 
 import ThemeToggle from "../components/ThemeToggle";
 
@@ -28,21 +32,48 @@ function Rooms() {
   }, []);
 
   async function loadRooms() {
-    setLoading(true);
-    setError("");
+  setError("");
 
-    try {
-      const result = await getMyRooms();
-      setRooms(result.rooms || []);
-    } catch (err) {
-      console.error("Load rooms error:", err);
-      setError(
-        err.message || "Unable to load your rooms."
-      );
-    } finally {
-      setLoading(false);
-    }
+  if (rooms.length === 0) {
+    setLoading(true);
   }
+
+  let hasCachedRooms = false;
+
+  try {
+    const storedUser = sessionStorage.getItem("bridgelyUser");
+    const userId = JSON.parse(storedUser || "null")?.id;
+
+    const cached = await getCachedRooms(userId);
+
+    if (cached.length > 0) {
+      setRooms(cached);
+      hasCachedRooms = true;
+    }
+  } catch (err) {
+    console.error("Offline rooms error:", err);
+  }
+
+  try {
+    const result = await getMyRooms();
+    const latestRooms = result.rooms || [];
+
+    setRooms(latestRooms);
+
+    const storedUser = sessionStorage.getItem("bridgelyUser");
+    const userId = JSON.parse(storedUser || "null")?.id;
+
+    await cacheRooms(userId, latestRooms);
+  } catch (err) {
+    console.error("Rooms refresh unavailable:", err);
+
+    if (!hasCachedRooms && navigator.onLine) {
+      setError(err.message || "Unable to load your rooms.");
+    }
+  } finally {
+    setLoading(false);
+  }
+}
 
   async function handleCreateRoom(event) {
     event.preventDefault();

@@ -1,3 +1,4 @@
+
 import prisma from "../config/prisma.js";
 
 export async function createDirectConversation(
@@ -209,7 +210,9 @@ export async function verifyConversationMembership(
 export async function sendMessage(
   conversationId,
   senderId,
-  content
+  content,
+  replyToId = null,
+  clientMessageId = null
 ) {
   const membership =
     await verifyConversationMembership(
@@ -223,6 +226,96 @@ export async function sendMessage(
     );
   }
 
+  if (
+    clientMessageId !== null &&
+    (
+      typeof clientMessageId !== "string" ||
+      !clientMessageId.trim()
+    )
+  ) {
+    throw new Error("Invalid client message ID");
+  }
+
+  // Check whether this message was already processed.
+  if (clientMessageId) {
+    const existingMessage =
+      await prisma.message.findUnique({
+        where: {
+          senderId_clientMessageId: {
+            senderId,
+            clientMessageId,
+          },
+        },
+        select: {
+          id: true,
+          content: true,
+          type: true,
+          senderId: true,
+          conversationId: true,
+          replyToId: true,
+          createdAt: true,
+          updatedAt: true,
+          sender: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatarUrl: true,
+            },
+          },
+          replyTo: {
+            select: {
+              id: true,
+              content: true,
+              senderId: true,
+              createdAt: true,
+              sender: {
+                select: {
+                  id: true,
+                  username: true,
+                  displayName: true,
+                  avatarUrl: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+    if (existingMessage) {
+      return {
+        message: existingMessage,
+        alreadyExisted: true,
+      };
+    }
+  }
+
+  if (replyToId !== null) {
+    if (
+      typeof replyToId !== "string" ||
+      !replyToId.trim()
+    ) {
+      throw new Error("Invalid reply message ID");
+    }
+
+    const originalMessage =
+      await prisma.message.findFirst({
+        where: {
+          id: replyToId,
+          conversationId,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+    if (!originalMessage) {
+      throw new Error(
+        "Original message not found in this conversation"
+      );
+    }
+  }
+
   const message =
     await prisma.message.create({
       data: {
@@ -230,6 +323,8 @@ export async function sendMessage(
         type: "TEXT",
         senderId,
         conversationId,
+        replyToId,
+        clientMessageId,
       },
       select: {
         id: true,
@@ -237,6 +332,7 @@ export async function sendMessage(
         type: true,
         senderId: true,
         conversationId: true,
+        replyToId: true,
         createdAt: true,
         updatedAt: true,
         sender: {
@@ -245,6 +341,22 @@ export async function sendMessage(
             username: true,
             displayName: true,
             avatarUrl: true,
+          },
+        },
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            senderId: true,
+            createdAt: true,
+            sender: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
           },
         },
       },
@@ -259,7 +371,10 @@ export async function sendMessage(
     },
   });
 
-  return message;
+  return {
+    message,
+    alreadyExisted: false,
+  };
 }
 
 export async function getConversationMessages(
@@ -292,6 +407,7 @@ export async function getConversationMessages(
         type: true,
         senderId: true,
         conversationId: true,
+        replyToId: true,
         createdAt: true,
         updatedAt: true,
         sender: {
@@ -300,6 +416,22 @@ export async function getConversationMessages(
             username: true,
             displayName: true,
             avatarUrl: true,
+          },
+        },
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            senderId: true,
+            createdAt: true,
+            sender: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
           },
         },
       },

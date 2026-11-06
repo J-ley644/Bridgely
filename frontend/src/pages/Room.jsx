@@ -8,6 +8,15 @@ import {
   getRoomMessages,
   sendRoomMessage,
 } from "../services/api";
+import {
+  cacheRooms,
+  getCachedRooms,
+  cacheRoomMessages,
+  getCachedRoomMessages,
+  queueOutgoingRoomMessage,
+} from "../services/offlineStorage";
+
+import { syncPendingRoomMessages } from "../services/roomMessageSync";
 
 import ThemeToggle from "../components/ThemeToggle";
 import { connectSocket } from "../services/socket";
@@ -61,22 +70,53 @@ function Room() {
   }, [roomId, currentUser]);
 
   async function loadRoom() {
-    setLoading(true);
-    setError("");
+  setLoading(true);
+  setError("");
 
-    try {
-      const result = await getRoom(roomId);
-      setRoom(result.room || null);
-    } catch (err) {
-      console.error("Load room error:", err);
+  let hasCachedRoom = false;
 
-      setError(
-        err.message || "Unable to load this room."
-      );
-    } finally {
-      setLoading(false);
+  try {
+    const cachedRooms = await getCachedRooms(currentUser.id);
+    const cachedRoom = cachedRooms.find(
+      (item) => item.id === roomId
+    );
+
+    if (cachedRoom) {
+      setRoom(cachedRoom);
+      hasCachedRoom = true;
     }
+  } catch (err) {
+    console.error("Cached room error:", err);
   }
+
+  try {
+    const result = await getRoom(roomId);
+    const latestRoom = result.room || null;
+
+    setRoom(latestRoom);
+
+    if (latestRoom) {
+      const cachedRooms = await getCachedRooms(currentUser.id);
+      await cacheRooms(
+        currentUser.id,
+        [
+          ...cachedRooms.filter((item) => item.id !== roomId),
+          latestRoom,
+        ]
+      );
+    }
+  } catch (err) {
+    console.error("Room refresh unavailable:", err);
+
+    if (!hasCachedRoom && navigator.onLine) {
+      setError(err.message || "Unable to load this room.");
+    } else if (!hasCachedRoom) {
+      setError("This room has not been saved on this device yet.");
+    }
+  } finally {
+    setLoading(false);
+  }
+}
 
   function isMember() {
     if (!room || !currentUser) {
@@ -98,31 +138,48 @@ function Room() {
   }
 
   async function loadMessages() {
-    if (!roomId || !currentUser) {
-      return;
+  if (!roomId || !currentUser) return;
+
+  setMessagesLoading(true);
+  setMessageError("");
+
+  let hasCachedMessages = false;
+
+  try {
+    const cached = await getCachedRoomMessages(
+      currentUser.id,
+      roomId
+    );
+
+    if (cached.length > 0) {
+      setMessages(cached);
+      hasCachedMessages = true;
     }
-
-    setMessagesLoading(true);
-    setMessageError("");
-
-    try {
-      const result = await getRoomMessages(roomId);
-
-      setMessages(result.messages || []);
-    } catch (err) {
-      console.error(
-        "Load room messages error:",
-        err
-      );
-
-      setMessageError(
-        err.message ||
-          "Unable to load room messages."
-      );
-    } finally {
-      setMessagesLoading(false);
-    }
+  } catch (err) {
+    console.error("Offline room messages error:", err);
   }
+
+  try {
+    const result = await getRoomMessages(roomId);
+    const latestMessages = result.messages || [];
+
+    setMessages(latestMessages);
+
+    await cacheRoomMessages(
+      currentUser.id,
+      roomId,
+      latestMessages
+    );
+  } catch (err) {
+    console.error("Room messages refresh unavailable:", err);
+
+    if (!hasCachedMessages && navigator.onLine) {
+      setMessageError("Unable to load room messages.");
+    }
+  } finally {
+    setMessagesLoading(false);
+  }
+}
 
   useEffect(() => {
     if (!roomId || !currentUser || !room) {
@@ -158,22 +215,28 @@ function Room() {
     socket.emit("join-room", roomId);
 
     function handleNewMessage(message) {
-      if (message.roomId !== roomId) {
-        return;
-      }
+  if (message.roomId !== roomId) return;
 
-      setMessages((currentMessages) => {
-        const exists = currentMessages.some(
-          (item) => item.id === message.id
-        );
+  setMessages((currentMessages) => {
+    const exists = currentMessages.some(
+      (item) => item.id === message.id
+    );
 
-        if (exists) {
-          return currentMessages;
-        }
+    if (exists) return currentMessages;
 
-        return [...currentMessages, message];
-      });
-    }
+    const updated = [...currentMessages, message];
+
+    cacheRoomMessages(
+      currentUser.id,
+      roomId,
+      updated
+    ).catch((err) =>
+      console.error("Room message cache error:", err)
+    );
+
+    return updated;
+  });
+}
 
     function handleSocketError(socketError) {
       console.error(
@@ -206,6 +269,57 @@ function Room() {
       );
     };
   }, [roomId, currentUser, room]);
+
+  useEffect(() => {
+  if (!currentUser || !roomId) return;
+
+  const syncMessages = () => {
+    if (navigator.onLine) {
+      syncPendingRoomMessages(currentUser.id);
+    }
+  };
+
+  function handleMessageSent(event) {
+    const {
+      roomId: sentRoomId,
+      localId,
+      message,
+    } = event.detail || {};
+
+    if (sentRoomId !== roomId || !message) return;
+
+    setMessages((currentMessages) => {
+      const updated = [
+        ...currentMessages.filter(
+          (item) =>
+            item.localId !== localId &&
+            item.id !== message.id
+        ),
+        message,
+      ];
+
+      return updated;
+    });
+  }
+
+  window.addEventListener("online", syncMessages);
+
+  window.addEventListener(
+    "bridgely:room-message-sent",
+    handleMessageSent
+  );
+
+  syncMessages();
+
+  return () => {
+    window.removeEventListener("online", syncMessages);
+
+    window.removeEventListener(
+      "bridgely:room-message-sent",
+      handleMessageSent
+    );
+  };
+}, [currentUser, roomId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
@@ -262,54 +376,52 @@ function Room() {
   }
 
   async function handleSendMessage(event) {
-    event?.preventDefault();
+  event?.preventDefault();
 
-    const content = messageText.trim();
+  const content = messageText.trim();
 
-    if (!content || sendingMessage) {
-      return;
+  if (!content || sendingMessage || !currentUser) return;
+
+  setSendingMessage(true);
+  setMessageError("");
+
+  const clientMessageId =
+    `room_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+  try {
+    const queuedMessage = await queueOutgoingRoomMessage({
+      userId: currentUser.id,
+      roomId,
+      senderId: currentUser.id,
+      content,
+      clientMessageId,
+    });
+
+    const cached = await getCachedRoomMessages(
+      currentUser.id,
+      roomId
+    );
+
+    setMessages(cached);
+    setMessageText("");
+
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+
+    if (navigator.onLine) {
+      syncPendingRoomMessages(currentUser.id);
     }
+  } catch (err) {
+    console.error("Room message saving error:", err);
 
-    setSendingMessage(true);
-    setMessageError("");
-
-    try {
-      const result = await sendRoomMessage(
-        roomId,
-        content
-      );
-
-      /*
-       * The server broadcasts the message through
-       * Socket.IO. We don't add it here because the
-       * socket event will add it once.
-       */
-
-      if (result?.data && !result.data.id) {
-        console.warn(
-          "Room message response did not contain an id."
-        );
-      }
-
-      setMessageText("");
-
-      requestAnimationFrame(() => {
-        textareaRef.current?.focus();
-      });
-    } catch (err) {
-      console.error(
-        "Send room message error:",
-        err
-      );
-
-      setMessageError(
-        err.message ||
-          "Unable to send your message."
-      );
-    } finally {
-      setSendingMessage(false);
-    }
+    setMessageError(
+      "Message could not be saved. Please try again."
+    );
+  } finally {
+    setSendingMessage(false);
   }
+}
 
   function handleMessageKeyDown(event) {
     if (event.key === "Enter" && !event.shiftKey) {

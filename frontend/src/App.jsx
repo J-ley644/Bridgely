@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import {
   BrowserRouter,
@@ -8,9 +7,9 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { App as CapacitorApp } from "@capacitor/app";
-import { Preferences } from "@capacitor/preferences";
 
 import { getSession } from "./services/session";
+import { syncPendingMessages } from "./services/messageSync";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -40,9 +39,7 @@ function GlobalSocket() {
       return;
     }
 
-    console.log(
-      "🌐 Starting global Bridgely real-time connection..."
-    );
+    console.log("🌐 Starting global Bridgely real-time connection...");
 
     const socket = connectSocket(token);
 
@@ -54,9 +51,7 @@ function GlobalSocket() {
     }
 
     function handleDisconnect() {
-      console.log(
-        "⚡ Global Bridgely real-time connection closed"
-      );
+      console.log("⚡ Global Bridgely real-time connection closed");
     }
 
     function handleConnectError(error) {
@@ -80,6 +75,36 @@ function GlobalSocket() {
       socket.off("connect_error", handleConnectError);
     };
   }, [location.pathname]);
+
+    useEffect(() => {
+    const userData = sessionStorage.getItem("bridgelyUser");
+    if (!userData) return;
+
+    let userId;
+
+    try {
+      userId = JSON.parse(userData)?.id;
+    } catch {
+      return;
+    }
+
+    if (!userId) return;
+
+    const syncMessages = () => {
+      if (navigator.onLine) {
+        syncPendingMessages(userId);
+      }
+    };
+
+    window.addEventListener("online", syncMessages);
+
+    // Sync immediately when the app opens.
+    syncMessages();
+
+    return () => {
+      window.removeEventListener("online", syncMessages);
+    };
+  }, []);
 
   return null;
 }
@@ -147,60 +172,34 @@ function SessionRedirect() {
 
 function App() {
   const [sessionReady, setSessionReady] = useState(false);
-  const [sessionDiagnostics, setSessionDiagnostics] = useState(null);
 
   useEffect(() => {
     async function restoreSession() {
-  let nativeToken = false;
-  let nativeUser = false;
+      try {
+        const session = await getSession();
 
-  try {
-    const token = await Preferences.get({
-      key: "bridgelyToken",
-    });
+        if (session?.token) {
+          sessionStorage.setItem("bridgelyToken", session.token);
 
-    const user = await Preferences.get({
-      key: "bridgelyUser",
-    });
-
-    nativeToken = !!token.value;
-    nativeUser = !!user.value;
-  } catch (error) {
-    console.error("Native diagnostic failed:", error);
-  }
-
-  const localToken = !!localStorage.getItem("bridgelyToken");
-  const localUser = !!localStorage.getItem("bridgelyUser");
-
-  setSessionDiagnostics({
-    nativeToken,
-    nativeUser,
-    localToken,
-    localUser,
-  });
-
-  try {
-    const session = await getSession();
-
-    if (session?.token) {
-      sessionStorage.setItem("bridgelyToken", session.token);
-
-      if (session.user) {
-        sessionStorage.setItem(
-          "bridgelyUser",
-          JSON.stringify(session.user)
+          if (session.user) {
+            sessionStorage.setItem(
+              "bridgelyUser",
+              JSON.stringify(session.user)
+            );
+          }
+        } else {
+          sessionStorage.removeItem("bridgelyToken");
+          sessionStorage.removeItem("bridgelyUser");
+        }
+      } catch (error) {
+        console.error(
+          "Failed to restore Bridgely session:",
+          error
         );
+      } finally {
+        setSessionReady(true);
       }
-    } else {
-      sessionStorage.removeItem("bridgelyToken");
-      sessionStorage.removeItem("bridgelyUser");
     }
-  } catch (error) {
-    console.error("Failed to restore Bridgely session:", error);
-  } finally {
-    setSessionReady(true);
-  }
-}
 
     restoreSession();
   }, []);
@@ -212,74 +211,19 @@ function App() {
   return (
     <ThemeProvider>
       <BrowserRouter>
-      {sessionDiagnostics && (
-  <div
-    style={{
-      position: "fixed",
-      top: 10,
-      left: 10,
-      right: 10,
-      zIndex: 99999,
-      background: "#111827",
-      color: "white",
-      padding: 14,
-      borderRadius: 10,
-      fontSize: 13,
-    }}
-  >
-    <strong>Bridgely Session Diagnostics</strong>
-
-    <div>Native token: {sessionDiagnostics.nativeToken ? "YES" : "NO"}</div>
-    <div>Native user: {sessionDiagnostics.nativeUser ? "YES" : "NO"}</div>
-    <div>Local token: {sessionDiagnostics.localToken ? "YES" : "NO"}</div>
-    <div>Local user: {sessionDiagnostics.localUser ? "YES" : "NO"}</div>
-  </div>
-)}
         <GlobalSocket />
         <AndroidBackHandler />
         <SessionRedirect />
 
         <Routes>
-          <Route
-            path="/"
-            element={<Landing />}
-          />
-
-          <Route
-            path="/login"
-            element={<Login />}
-          />
-
-          <Route
-            path="/register"
-            element={<Register />}
-          />
-
-          <Route
-            path="/verify"
-            element={<Verify />}
-          />
-
-          <Route
-            path="/home"
-            element={<Home />}
-          />
-
-          <Route
-            path="/search"
-            element={<Search />}
-          />
-
-          <Route
-            path="/rooms"
-            element={<Rooms />}
-          />
-
-          <Route
-            path="/rooms/:roomId"
-            element={<Room />}
-          />
-
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/verify" element={<Verify />} />
+          <Route path="/home" element={<Home />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/rooms" element={<Rooms />} />
+          <Route path="/rooms/:roomId" element={<Room />} />
           <Route
             path="/conversation/:conversationId"
             element={<Conversation />}
@@ -291,4 +235,3 @@ function App() {
 }
 
 export default App;
-

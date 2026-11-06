@@ -55,20 +55,28 @@ model ConversationMember {
 
 model Message {
   id             String        @id @default(uuid())
+  clientMessageId String?
   content        String
   type           MessageType   @default(TEXT)
   senderId       String
   conversationId String?
+  roomId         String?
+  replyToId      String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-  roomId         String?
+
   conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   room           Room?         @relation(fields: [roomId], references: [id], onDelete: Cascade)
   sender         User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
+  replyTo        Message?      @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        Message[]     @relation("MessageReplies")
+
   @@index([conversationId])
   @@index([roomId])
   @@index([senderId])
+  @@index([replyToId])
+  @@unique([senderId, clientMessageId])
 }
 
 model Room {

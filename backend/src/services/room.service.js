@@ -292,10 +292,12 @@ export async function getRoomMessages(roomId, userId) {
   return messages;
 }
 
+
 export async function sendRoomMessage(
   roomId,
   userId,
-  content
+  content,
+  clientMessageId = null
 ) {
   const membership = await prisma.roomMember.findUnique({
     where: {
@@ -316,24 +318,81 @@ export async function sendRoomMessage(
     throw new Error("Message content is required");
   }
 
-  const message = await prisma.message.create({
-    data: {
-      content: cleanContent,
-      type: "TEXT",
-      senderId: userId,
-      roomId,
-    },
-    include: {
-      sender: {
-        select: {
-          id: true,
-          username: true,
-          displayName: true,
-          avatarUrl: true,
-        },
+  if (
+    clientMessageId !== null &&
+    (typeof clientMessageId !== "string" ||
+      !clientMessageId.trim())
+  ) {
+    throw new Error("Invalid client message ID");
+  }
+
+  const include = {
+    sender: {
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        avatarUrl: true,
       },
     },
-  });
+  };
 
-  return message;
+  if (clientMessageId) {
+    const existingMessage = await prisma.message.findUnique({
+      where: {
+        senderId_clientMessageId: {
+          senderId: userId,
+          clientMessageId,
+        },
+      },
+      include,
+    });
+
+    if (existingMessage) {
+      return {
+        message: existingMessage,
+        alreadyExisted: true,
+      };
+    }
+  }
+
+  try {
+    const message = await prisma.message.create({
+      data: {
+        content: cleanContent,
+        type: "TEXT",
+        senderId: userId,
+        roomId,
+        clientMessageId,
+      },
+      include,
+    });
+
+    return {
+      message,
+      alreadyExisted: false,
+    };
+  } catch (error) {
+    // Handle simultaneous retries using the database unique constraint.
+    if (error.code === "P2002" && clientMessageId) {
+      const existingMessage = await prisma.message.findUnique({
+        where: {
+          senderId_clientMessageId: {
+            senderId: userId,
+            clientMessageId,
+          },
+        },
+        include,
+      });
+
+      if (existingMessage) {
+        return {
+          message: existingMessage,
+          alreadyExisted: true,
+        };
+      }
+    }
+
+    throw error;
+  }
 }

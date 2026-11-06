@@ -255,40 +255,46 @@ export async function getRoomMessagesController(
   }
 }
 
+
 export async function sendRoomMessageController(
   req,
   res
 ) {
   try {
     const { roomId } = req.params;
-    const { content } = req.body || {};
+    const { content, clientMessageId } = req.body || {};
 
-    if (
-      !content ||
-      !content.trim()
-    ) {
+    if (!content || !content.trim()) {
       return res.status(400).json({
         success: false,
         message: "Message content is required",
       });
     }
 
-    const message = await sendRoomMessage(
+    const result = await sendRoomMessage(
       roomId,
       req.user.userId,
-      content
+      content,
+      clientMessageId
     );
 
-    const io = getIO();
+    const { message, alreadyExisted } = result;
 
-    io.to(`room:${roomId}`).emit(
-      "room:message:new",
-      message
-    );
+    // Only broadcast genuinely new messages.
+    if (!alreadyExisted) {
+      const io = getIO();
 
-    return res.status(201).json({
+      io.to(`room:${roomId}`).emit(
+        "room:message:new",
+        message
+      );
+    }
+
+    return res.status(alreadyExisted ? 200 : 201).json({
       success: true,
-      message: "Message sent successfully",
+      message: alreadyExisted
+        ? "Message already sent"
+        : "Message sent successfully",
       data: message,
     });
   } catch (error) {
@@ -302,6 +308,16 @@ export async function sendRoomMessageController(
       "You are not a member of this room"
     ) {
       return res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error.message === "Message content is required" ||
+      error.message === "Invalid client message ID"
+    ) {
+      return res.status(400).json({
         success: false,
         message: error.message,
       });

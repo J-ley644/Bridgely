@@ -1,3 +1,4 @@
+
 import {
   createDirectConversation,
   getUserConversations,
@@ -19,11 +20,10 @@ export async function createDirect(req, res) {
       });
     }
 
-    const conversation =
-      await createDirectConversation(
-        req.user.userId,
-        username.trim().toLowerCase()
-      );
+    const conversation = await createDirectConversation(
+      req.user.userId,
+      username.trim().toLowerCase()
+    );
 
     return res.status(200).json({
       success: true,
@@ -31,10 +31,7 @@ export async function createDirect(req, res) {
       conversation,
     });
   } catch (error) {
-    console.error(
-      "Create direct conversation error:",
-      error
-    );
+    console.error("Create direct conversation error:", error);
 
     if (error.message === "User not found") {
       return res.status(404).json({
@@ -55,60 +52,46 @@ export async function createDirect(req, res) {
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to create direct conversation",
+      message: "Failed to create direct conversation",
     });
   }
 }
 
 export async function getConversations(req, res) {
   try {
-    const conversations =
-      await getUserConversations(
-        req.user.userId
-      );
+    const conversations = await getUserConversations(
+      req.user.userId
+    );
 
     return res.status(200).json({
       success: true,
       conversations,
     });
   } catch (error) {
-    console.error(
-      "Get conversations error:",
-      error
-    );
+    console.error("Get conversations error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to retrieve conversations",
+      message: "Failed to retrieve conversations",
     });
   }
 }
 
-export async function getConversation(
-  req,
-  res
-) {
+export async function getConversation(req, res) {
   try {
-    const { conversationId } =
-      req.params;
+    const { conversationId } = req.params;
 
-    const conversation =
-      await getConversationById(
-        conversationId,
-        req.user.userId
-      );
+    const conversation = await getConversationById(
+      conversationId,
+      req.user.userId
+    );
 
     return res.status(200).json({
       success: true,
       conversation,
     });
   } catch (error) {
-    console.error(
-      "Get conversation error:",
-      error
-    );
+    console.error("Get conversation error:", error);
 
     if (
       error.message ===
@@ -122,56 +105,81 @@ export async function getConversation(
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to retrieve conversation",
+      message: "Failed to retrieve conversation",
     });
   }
 }
 
-export async function sendConversationMessage(
-  req,
-  res
-) {
+export async function sendConversationMessage(req, res) {
   try {
-    const { conversationId } =
-      req.params;
+    const { conversationId } = req.params;
+    const { content, replyToId, clientMessageId } = req.body || {};
 
-    const { content } = req.body || {};
-
-    if (!content || !content.trim()) {
+    if (
+      typeof content !== "string" ||
+      !content.trim()
+    ) {
       return res.status(400).json({
         success: false,
-        message:
-          "Message content is required",
+        message: "Message content is required",
       });
     }
 
-    const message = await sendMessage(
+    if (
+      clientMessageId !== undefined &&
+      (
+        typeof clientMessageId !== "string" ||
+        !clientMessageId.trim() ||
+        clientMessageId.length > 100
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid client message ID",
+      });
+    }
+
+    if (
+      replyToId !== undefined &&
+      replyToId !== null &&
+      (typeof replyToId !== "string" || !replyToId.trim())
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid reply message ID",
+      });
+    }
+
+    const result = await sendMessage(
       conversationId,
       req.user.userId,
-      content.trim()
+      content.trim(),
+      replyToId || null,
+      clientMessageId?.trim() || null
     );
 
-    const io = getIO();
+    const message = result.message || result;
+    const alreadyExisted = result.alreadyExisted === true;
 
-    io.to(
-      `conversation:${conversationId}`
-    ).emit(
-      "message:new",
-      message
-    );
+    // Only broadcast newly created messages.
+    if (!alreadyExisted) {
+      const io = getIO();
 
-    return res.status(201).json({
+      io.to(`conversation:${conversationId}`).emit(
+        "message:new",
+        message
+      );
+    }
+
+    return res.status(alreadyExisted ? 200 : 201).json({
       success: true,
-      message:
-        "Message sent successfully",
+      message: alreadyExisted
+        ? "Message already sent"
+        : "Message sent successfully",
       data: message,
     });
   } catch (error) {
-    console.error(
-      "Send message error:",
-      error
-    );
+    console.error("Send message error:", error);
 
     if (
       error.message ===
@@ -183,37 +191,48 @@ export async function sendConversationMessage(
       });
     }
 
+    if (
+      error.message ===
+      "Original message not found in this conversation"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error.message === "Invalid reply message ID" ||
+      error.message === "Invalid client message ID"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to send message",
+      message: "Failed to send message",
     });
   }
 }
 
-export async function getConversationMessages(
-  req,
-  res
-) {
+export async function getConversationMessages(req, res) {
   try {
-    const { conversationId } =
-      req.params;
+    const { conversationId } = req.params;
 
-    const messages =
-      await getMessages(
-        conversationId,
-        req.user.userId
-      );
+    const messages = await getMessages(
+      conversationId,
+      req.user.userId
+    );
 
     return res.status(200).json({
       success: true,
       messages,
     });
   } catch (error) {
-    console.error(
-      "Get messages error:",
-      error
-    );
+    console.error("Get messages error:", error);
 
     if (
       error.message ===
@@ -227,8 +246,7 @@ export async function getConversationMessages(
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to retrieve messages",
+      message: "Failed to retrieve messages",
     });
   }
 }

@@ -7,6 +7,11 @@ import {
   getMyRooms,
 } from "../services/api";
 
+import {
+  cacheConversations,
+  getCachedConversations,
+} from "../services/offlineStorage";
+
 import socket from "../services/socket";
 import ThemeToggle from "../components/ThemeToggle";
 import { clearSession } from "../services/session";
@@ -117,30 +122,50 @@ function Home() {
     };
   }, [user]);
 
-  async function loadConversations() {
+ async function loadConversations() {
+  setConversationError("");
+
+  if (conversations.length === 0) {
     setLoadingConversations(true);
+  }
+
+  let hasCachedConversations = false;
+
+  try {
+    const cached = await getCachedConversations(user?.id);
+
+    if (cached.length > 0) {
+      setConversations(cached);
+      hasCachedConversations = true;
+    }
+  } catch (error) {
+    console.error("Offline conversations error:", error);
+  }
+
+  try {
+    const result = await getConversations();
+    const latestConversations = result.conversations || [];
+
+    setConversations(latestConversations);
     setConversationError("");
 
-    try {
-      const result = await getConversations();
+    await cacheConversations(user.id, latestConversations);
+  } catch (error) {
+    console.error("Conversation refresh unavailable:", error);
 
-      setConversations(
-        result.conversations || []
-      );
-    } catch (error) {
-      console.error(
-        "Load conversations error:",
-        error
-      );
-
+    if (!hasCachedConversations) {
       setConversationError(
-        error.message ||
-          "Unable to load your conversations."
+        navigator.onLine
+          ? "Unable to load your conversations. Please try again."
+          : ""
       );
-    } finally {
-      setLoadingConversations(false);
+    } else {
+      setConversationError("");
     }
+  } finally {
+    setLoadingConversations(false);
   }
+}
 
   async function loadRooms() {
     setLoadingRooms(true);
